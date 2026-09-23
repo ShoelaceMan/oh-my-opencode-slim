@@ -760,7 +760,7 @@ export const DelegationRouterConfigSchema = z
       )
       .default('OPENROUTER_API_KEY')
       .describe(
-        'Name of the environment variable containing the OpenRouter API key. The key itself is never stored in plugin config.',
+        'Fallback environment variable containing the OpenRouter API key when OpenCode has no stored OpenRouter credential. The key itself is never stored in plugin config.',
       ),
     confidenceThreshold: z
       .number()

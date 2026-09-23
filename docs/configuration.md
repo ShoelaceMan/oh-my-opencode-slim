@@ -120,7 +120,7 @@ All config files support **JSONC** (JSON with Comments):
 | `stripOrchestratorModel` | boolean | `false` | Preserve a runtime `/model` selection for the orchestrator after subagent dispatch by omitting its configured model from the SDK config. A selected preset's explicit `orchestrator.model` is retained. Without a runtime selection, this opt-in delegates the initial orchestrator choice to OpenCode's session default. |
 | `delegationRouter.enabled` | boolean | `false` | Opt in to advisory model-assisted specialist selection through OpenRouter's Decisions API. |
 | `delegationRouter.model` | string | `"typesafe/jev-1.13"` | Decisions model in `provider/model` form. The default is pinned for reproducibility. |
-| `delegationRouter.apiKeyEnv` | string | `"OPENROUTER_API_KEY"` | Environment-variable name containing the OpenRouter API key. The secret itself is never stored in plugin config. |
+| `delegationRouter.apiKeyEnv` | string | `"OPENROUTER_API_KEY"` | Fallback environment-variable name used when OpenCode has no stored OpenRouter credential. The secret itself is never stored in plugin config. |
 | `delegationRouter.confidenceThreshold` | number | `0.72` | Minimum confidence (0–1) required before `route_agent` recommends dispatch. Lower-confidence answers fall back to manual routing. |
 | `delegationRouter.timeoutMs` | integer | `5000` | Decisions request timeout (100–30000 ms). |
 | `delegationRouter.compactPrompt` | boolean | `true` | Move built-in, custom, and ACP routing criteria out of the orchestrator prompt and into the on-demand decision request. |
@@ -146,15 +146,20 @@ verification.
 }
 ```
 
-Set the API key in the environment that launches OpenCode:
+If OpenRouter is connected in OpenCode, the router automatically reuses that
+stored credential through OpenCode's provider-auth loader. No second key or
+environment variable is required.
+
+For headless hosts or OpenCode versions that do not run provider-auth loaders,
+set the fallback API key in the environment that launches OpenCode:
 
 ```bash
 export OPENROUTER_API_KEY="..."
 ```
 
-OpenCode does not expose stored provider credentials back to plugins, so the
-router cannot reuse an OpenRouter key from OpenCode's auth store. To use a
-different environment variable, set `delegationRouter.apiKeyEnv` to its name.
+To use a different fallback environment variable, set
+`delegationRouter.apiKeyEnv` to its name. The plugin never reads OpenCode's auth
+file directly and never writes the credential into plugin configuration.
 
 With `compactPrompt: true`, built-in routing blocks and each agent's
 `orchestratorPrompt` become Jev choice criteria instead of permanent

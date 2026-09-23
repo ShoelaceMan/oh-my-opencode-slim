@@ -255,7 +255,8 @@ Preset switching is not a tool: `preset-switch.ts` exposes on-disk helpers
 
 #### Delegation Router (route-agent.ts)
 - Registered only when `delegationRouter.enabled` is true and `route_agent` is not disabled
-- Reads the OpenRouter key from the configured environment-variable name
+- Uses the OpenCode-stored OpenRouter credential when available, then the
+  configured environment-variable fallback
 - Sends one bounded lane and the stable enabled-agent criteria catalog to the Decisions API
 - Returns selected/uncertain/unavailable advisory output; errors fail open to manual routing
 

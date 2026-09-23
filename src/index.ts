@@ -1478,6 +1478,8 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
 
     mcp: mcps,
 
+    auth: openRouterCredentialBridge?.auth,
+
     config: async (opencodeConfig: Record<string, unknown>) => {
       const preMutationHostSnapshot = resolvedAgentRegistry
         ? undefined

@@ -14,16 +14,19 @@ process.
 2. `buildDelegationRouteCandidates()` receives that frozen construction-time
    tree plus `RuntimeConfig`.
 3. Each candidate receives host-facing dispatch name and routing criteria.
-4. `src/tools/route-agent.ts` sends the catalog with one bounded lane to the
+4. `openrouter-auth.ts` receives the existing OpenRouter bearer credential
+   through OpenCode's provider-auth loader when the router is enabled.
+5. `src/tools/route-agent.ts` sends the catalog with one bounded lane to the
    OpenRouter Decisions API.
-5. Jev returns a typed choice; the tool reports it to the orchestrator without
+6. Jev returns a typed choice; the tool reports it to the orchestrator without
    launching any agent.
 
 ## Cache and Security Boundaries
 
 - Catalog construction is deterministic for a plugin generation, so compact
   prompt assembly stays cache-safe.
-- API credentials are not part of the catalog and are read only by the tool
-  from the configured environment variable at execution time.
+- API credentials are not part of the catalog. The bridge holds OpenCode's
+  stored credential only in memory; the configured environment variable is a
+  compatibility fallback.
 - Council/councillor routing remains on the existing explicit Council Mode
   path rather than becoming an ordinary Jev choice.

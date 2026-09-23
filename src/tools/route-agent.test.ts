@@ -26,8 +26,10 @@ function parseResult(result: unknown): Record<string, unknown> {
 describe('route_agent tool', () => {
   test('returns a high-confidence route without dispatching it', async () => {
     let requestBody: Record<string, unknown> | undefined;
+    let authorization: string | null = null;
     const fetchImpl = mock(async (_input: unknown, init?: RequestInit) => {
       requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      authorization = new Headers(init?.headers).get('authorization');
       return decisionResponse({
         choice: '__agent__fixer',
         confidence: 0.91,
@@ -42,7 +44,8 @@ describe('route_agent tool', () => {
       config,
       candidates,
       fetchImpl,
-      env: { OPENROUTER_API_KEY: 'test-key' },
+      getOpenRouterCredential: () => 'stored-opencode-key',
+      env: {},
     }).route_agent;
 
     const result = parseResult(
@@ -61,6 +64,7 @@ describe('route_agent tool', () => {
     });
     expect(requestBody?.model).toBe('typesafe/jev-1.13');
     expect(requestBody?.state).toContain('Implement the parsed configuration.');
+    expect(authorization).toBe('Bearer stored-opencode-key');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +121,7 @@ describe('route_agent tool', () => {
     expect(result.candidates).toBeArray();
   });
 
-  test('fails open without exposing or scraping a missing API key', async () => {
+  test('fails open without exposing or scraping missing credentials', async () => {
     const fetchImpl = mock(async () => {
       throw new Error('fetch should not run');
     }) as unknown as typeof fetch;
@@ -135,7 +139,7 @@ describe('route_agent tool', () => {
     );
     expect(result).toMatchObject({
       status: 'unavailable',
-      reason: 'missing_api_key:OPENROUTER_API_KEY',
+      reason: 'missing_openrouter_credentials:OPENROUTER_API_KEY',
       dispatch: 'manual',
     });
     expect(fetchImpl).not.toHaveBeenCalled();

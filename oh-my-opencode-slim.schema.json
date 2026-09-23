@@ -3516,7 +3516,7 @@
         },
         "apiKeyEnv": {
           "default": "OPENROUTER_API_KEY",
-          "description": "Name of the environment variable containing the OpenRouter API key. The key itself is never stored in plugin config.",
+          "description": "Fallback environment variable containing the OpenRouter API key when OpenCode has no stored OpenRouter credential. The key itself is never stored in plugin config.",
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         },

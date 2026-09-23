@@ -14,6 +14,7 @@ interface RouteAgentToolOptions {
   config: DelegationRouterConfig;
   candidates: readonly DelegationRouteCandidate[];
   resolveAgentName?: (agent: string) => string;
+  getOpenRouterCredential?: () => string | undefined;
   fetchImpl?: FetchLike;
   env?: Readonly<Record<string, string | undefined>>;
 }
@@ -140,10 +141,12 @@ export function createRouteAgentTool(
         throw new Error('route_agent can only be used by orchestrator');
       }
 
-      const apiKey = environment[options.config.apiKeyEnv]?.trim();
+      const apiKey =
+        options.getOpenRouterCredential?.()?.trim() ||
+        environment[options.config.apiKeyEnv]?.trim();
       if (!apiKey) {
         return unavailableResult(
-          `missing_api_key:${options.config.apiKeyEnv}`,
+          `missing_openrouter_credentials:${options.config.apiKeyEnv}`,
           options.candidates,
         );
       }

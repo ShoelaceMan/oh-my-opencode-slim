@@ -55,7 +55,7 @@ OpenCode Core → Plugin Initialization (index.ts)
 | `tui-preset.ts` | Three-level `/preset` manager (preset list → agents → agent edit) using `api.ui` dialogs | preset-switch.ts, config loader/constants |
 | `plugin-entry.ts` | Installer-managed plugin entry marker and `PluginEntry` type | none |
 | `health-check.ts` | Init health-check thresholds and disabled-tool-aware minimum tool count | none (kept internal, not re-exported) |
-| `delegation-router/` | Builds the enabled specialist choice catalog used by the opt-in routing tool | Agent definitions, runtime config |
+| `delegation-router/` | Builds the enabled specialist choice catalog and bridges OpenCode's stored OpenRouter credential for the opt-in routing tool | Agent definitions, runtime config, provider-auth loader |
 
 ## Flow
 
@@ -157,7 +157,7 @@ Key event flows:
 - **Config System** (`src/config/`): Configuration loading, validation, the `RuntimeConfig` runtime-state singleton, and runtime presets
 - **Agents** (`src/agents/`): Agent personalities and permission sets
 - **Tools** (`src/tools/`): Tool implementations (task lifecycle controls, advisory delegation routing, webfetch, AST operations, ACP)
-- **Delegation Router** (`src/delegation-router/`): Stable enabled-agent criteria catalog consumed by `route_agent`
+- **Delegation Router** (`src/delegation-router/`): Stable enabled-agent criteria catalog plus the in-memory OpenRouter credential bridge consumed by `route_agent`
 - **Hooks** (`src/hooks/`): Lifecycle hooks for auto-update, phase reminders, cache monitor, orchestrator wake, etc.
 - **Multiplexer** (`src/multiplexer/`): Client-side pane lifecycle (`client/`) plus tmux/Zellij/Herdr/cmux/kitty adapters; wired only from the TUI entry
 - **Council** (`src/agents/council.ts`, `src/agents/council-agents.ts`): Multi-LLM council orchestration

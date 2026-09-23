@@ -32,7 +32,7 @@ This codemap covers the plugin repository itself and excludes the nested `openco
 | `src/agents/` | Agent factory layer for orchestrator and specialists (incl. dynamic `councillor-<name>` agents from council presets), including prompt/model overrides, task-rejection instruction, display-name normalization, MCP assignment, and permission shaping. | [View Map](src/agents/codemap.md) |
 | `src/cli/` | Installer, config editing, provider preset generation, and built-in skill installation. | [View Map](src/cli/codemap.md) |
 | `src/config/` | Configuration schema, layered loaders, the depth-first preset resolver, compatibility migrations, constant tables, provider/model-ID schema, project-local skill discovery, the `RuntimeConfig` runtime-state singleton, and agent/MCP policy helpers. | [View Map](src/config/codemap.md) |
-| `src/delegation-router/` | Stable specialist-choice catalog for opt-in model-assisted routing, including custom/ACP criteria and display-name rewriting. | [View Map](src/delegation-router/codemap.md) |
+| `src/delegation-router/` | Stable specialist-choice catalog and OpenCode provider-auth bridge for opt-in model-assisted routing. | [View Map](src/delegation-router/codemap.md) |
 
 | `src/hooks/` | Aggregated runtime hook surface: prompt transforms, cache-safe injection, recovery logic, task-session aliasing, cache monitoring, orchestrator wake, and lifecycle policies. | [View Map](src/hooks/codemap.md) |
 | `src/hooks/absolute-path-rescue/` | Rewrites misguessed absolute tool paths (read/list/glob/grep) by re-anchoring the longest workspace-suffix match; ENOENT-only, unambiguous existing candidates, never invents paths. | [View Map](src/hooks/absolute-path-rescue/codemap.md) |
