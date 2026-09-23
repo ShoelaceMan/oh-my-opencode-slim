@@ -165,6 +165,14 @@ describe('RuntimeConfig', () => {
       retryDelayMs: 500,
     });
     expect(runtime.webfetch.enabled).toBe(true);
+    expect(runtime.delegationRouter).toEqual({
+      enabled: false,
+      model: 'typesafe/jev-1.13',
+      apiKeyEnv: 'OPENROUTER_API_KEY',
+      confidenceThreshold: 0.72,
+      timeoutMs: 5_000,
+      compactPrompt: true,
+    });
     expect(runtime.acpAgents).toEqual({});
     expect(runtime.companion).toBeUndefined();
     expect(runtime.council).toBeUndefined();
@@ -196,6 +204,14 @@ describe('RuntimeConfig', () => {
       disabled_skills: ['clonedeps'],
       fallback: { enabled: false, maxRetries: 5 },
       webfetch: { enabled: false },
+      delegationRouter: {
+        enabled: true,
+        model: 'typesafe/jev-1.13',
+        apiKeyEnv: 'CUSTOM_OPENROUTER_KEY',
+        confidenceThreshold: 0.8,
+        timeoutMs: 2_000,
+        compactPrompt: false,
+      },
       acpAgents: { myAcp: { command: 'echo' } },
       backgroundJobs: { maxSessionsPerAgent: 7 },
       multiplexer: { type: 'tmux', layout: 'main-vertical' },
@@ -213,6 +229,9 @@ describe('RuntimeConfig', () => {
     expect(runtime.fallback.enabled).toBe(false);
     expect(runtime.fallback.maxRetries).toBe(5);
     expect(runtime.webfetch.enabled).toBe(false);
+    expect(runtime.delegationRouter.enabled).toBe(true);
+    expect(runtime.delegationRouter.apiKeyEnv).toBe('CUSTOM_OPENROUTER_KEY');
+    expect(runtime.delegationRouter.compactPrompt).toBe(false);
     expect(runtime.acpAgents.myAcp.command).toBe('echo');
     expect(runtime.backgroundJobs.maxSessionsPerAgent).toBe(7);
     expect(runtime.multiplexer.type).toBe('tmux');

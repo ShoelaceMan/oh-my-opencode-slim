@@ -6,6 +6,7 @@ export {
   createMarketplaceTools,
   resolveFinalizedOrchestratorIdentities,
 } from './marketplace';
+export { createRouteAgentTool } from './route-agent';
 export { createWebfetchTool } from './smartfetch';
 export { createTaskMessageTool } from './task-message';
 export { createTaskReplyTool } from './task-reply';

@@ -55,6 +55,7 @@ OpenCode Core → Plugin Initialization (index.ts)
 | `tui-preset.ts` | Three-level `/preset` manager (preset list → agents → agent edit) using `api.ui` dialogs | preset-switch.ts, config loader/constants |
 | `plugin-entry.ts` | Installer-managed plugin entry marker and `PluginEntry` type | none |
 | `health-check.ts` | Init health-check thresholds and disabled-tool-aware minimum tool count | none (kept internal, not re-exported) |
+| `delegation-router/` | Builds the enabled specialist choice catalog used by the opt-in routing tool | Agent definitions, runtime config |
 
 ## Flow
 
@@ -63,7 +64,7 @@ OpenCode Core → Plugin Initialization (index.ts)
 1. **Config Loading**: `loadPluginConfig()` reads and validates plugin configuration; `RuntimeConfig` singleton seeded and host config captured
 2. **Agent Creation**: `createAgents()` instantiates agent definitions (incl. dynamic councillors) with prompts and permissions
 3. **Agent Configuration**: `getAgentConfigs()` merges defaults with user overrides and runtime presets
-4. **Tool Registration**: Tools are created conditionally based on config (task_cancel, task_message, task_revive, task_status, task_result, wait_for_user, webfetch, AST-grep, acp_run)
+4. **Tool Registration**: Tools are created conditionally based on config (task_cancel, task_message, task_revive, task_status, task_result, wait_for_user, route_agent, webfetch, AST-grep, acp_run)
 5. **MCP Registration**: Built-in MCPs are created (context7, gh_grep)
 6. **Hook Initialization**: Auto-update checker, phase reminders, skill filters, task-session manager, cache monitor, orchestrator-wake scheduler, etc.
 7. **Runtime Model Resolution**: Resolves model arrays to single models for startup
@@ -155,7 +156,8 @@ Key event flows:
 
 - **Config System** (`src/config/`): Configuration loading, validation, the `RuntimeConfig` runtime-state singleton, and runtime presets
 - **Agents** (`src/agents/`): Agent personalities and permission sets
-- **Tools** (`src/tools/`): Tool implementations (task lifecycle controls, webfetch, AST operations, ACP)
+- **Tools** (`src/tools/`): Tool implementations (task lifecycle controls, advisory delegation routing, webfetch, AST operations, ACP)
+- **Delegation Router** (`src/delegation-router/`): Stable enabled-agent criteria catalog consumed by `route_agent`
 - **Hooks** (`src/hooks/`): Lifecycle hooks for auto-update, phase reminders, cache monitor, orchestrator wake, etc.
 - **Multiplexer** (`src/multiplexer/`): Client-side pane lifecycle (`client/`) plus tmux/Zellij/Herdr/cmux/kitty adapters; wired only from the TUI entry
 - **Council** (`src/agents/council.ts`, `src/agents/council-agents.ts`): Multi-LLM council orchestration

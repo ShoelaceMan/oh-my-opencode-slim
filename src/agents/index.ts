@@ -713,6 +713,9 @@ export function createAgents(
     !runtime.disabledTools.includes('wait_for_user'),
     runtime.backgroundJobs.orchestratorWake.enabled,
     options?.hostFlavor,
+    runtime.delegationRouter.enabled &&
+      runtime.delegationRouter.compactPrompt &&
+      !runtime.disabledTools.includes('route_agent'),
   );
 
   const inlineOrchestratorPrompt = orchestratorOverride?.prompt;
@@ -847,6 +850,15 @@ export function createAgents(
   }
 
   orchestrator.config.prompt = updatedPrompt;
+
+  if (
+    runtime.delegationRouter.enabled &&
+    !runtime.disabledTools.includes('route_agent') &&
+    typeof orchestrator.config.permission === 'object' &&
+    orchestrator.config.permission !== null
+  ) {
+    orchestrator.config.permission.route_agent ??= 'allow';
+  }
 
   return [orchestrator, ...allSubAgents];
 }

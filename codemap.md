@@ -32,6 +32,7 @@ This codemap covers the plugin repository itself and excludes the nested `openco
 | `src/agents/` | Agent factory layer for orchestrator and specialists (incl. dynamic `councillor-<name>` agents from council presets), including prompt/model overrides, task-rejection instruction, display-name normalization, MCP assignment, and permission shaping. | [View Map](src/agents/codemap.md) |
 | `src/cli/` | Installer, config editing, provider preset generation, and built-in skill installation. | [View Map](src/cli/codemap.md) |
 | `src/config/` | Configuration schema, layered loaders, the depth-first preset resolver, compatibility migrations, constant tables, provider/model-ID schema, project-local skill discovery, the `RuntimeConfig` runtime-state singleton, and agent/MCP policy helpers. | [View Map](src/config/codemap.md) |
+| `src/delegation-router/` | Stable specialist-choice catalog for opt-in model-assisted routing, including custom/ACP criteria and display-name rewriting. | [View Map](src/delegation-router/codemap.md) |
 
 | `src/hooks/` | Aggregated runtime hook surface: prompt transforms, cache-safe injection, recovery logic, task-session aliasing, cache monitoring, orchestrator wake, and lifecycle policies. | [View Map](src/hooks/codemap.md) |
 | `src/hooks/absolute-path-rescue/` | Rewrites misguessed absolute tool paths (read/list/glob/grep) by re-anchoring the longest workspace-suffix match; ENOENT-only, unambiguous existing candidates, never invents paths. | [View Map](src/hooks/absolute-path-rescue/codemap.md) |
@@ -58,7 +59,7 @@ This codemap covers the plugin repository itself and excludes the nested `openco
 | `src/skills/codemap/` | Repository-mapping skill package and codemap state-management script. | [View Map](src/skills/codemap/codemap.md) |
 | `src/skills/clonedeps/` | Workflow-only dependency source mirroring skill that routes discovery/ref resolution through librarian and direct orchestrator git operations. | [View Map](src/skills/clonedeps/codemap.md) |
 | `src/skills/simplify/` | Behavior-preserving simplification skill package. | [View Map](src/skills/simplify/codemap.md) |
-| `src/tools/` | Tool factory surface for AST-grep, smartfetch, ACP, and task lifecycle controls (cancel/message/status/result/revive/wait-for-user), plus shared task-status policy and activity trackers and on-disk preset-switching helpers. | [View Map](src/tools/codemap.md) |
+| `src/tools/` | Tool factory surface for AST-grep, smartfetch, ACP, advisory delegation routing, and task lifecycle controls (cancel/message/status/result/revive/wait-for-user), plus shared task-status policy and activity trackers and on-disk preset-switching helpers. | [View Map](src/tools/codemap.md) |
 | `src/tools/ast-grep/` | AST-grep binary management and AST-aware search/replace tool flow. | [View Map](src/tools/ast-grep/codemap.md) |
 | `src/tools/smartfetch/` | Fetch/extract/cache pipeline for web content and secondary-model summarization. | [View Map](src/tools/smartfetch/codemap.md) |
 | `src/utils/` | Cross-cutting helpers: logging, session metadata, background job board/store/coordinator/supervisor, live session-status reads, in-process opencode client access, task parsing, env, compat/zip, and client call-shape contracts. | [View Map](src/utils/codemap.md) |
@@ -78,7 +79,7 @@ This codemap covers the plugin repository itself and excludes the nested `openco
    - Delegation orchestration, interview support, task-session aliasing, orchestrator-wake scheduling, TUI preset switching, and the init health check are initialized. (Multiplexer pane lifecycle is initialized by the TUI client in `src/tui.ts`, never by the server entry.)
 
 2. **Interactive request handling**
-   - The orchestrator prompt drives routing decisions.
+   - The orchestrator prompt drives routing decisions; when enabled, `route_agent` moves the specialist catalog into an on-demand OpenRouter Decisions request while leaving dispatch and verification with the orchestrator.
    - Tool calls resolve through `src/tools/` or built-in OpenCode tools.
    - Hooks can transform prompts/messages, normalize system message arrays, repair tool failures, or intercept runtime commands before/after execution.
    - Prompt content is injected only through the cache-safe helpers in `src/hooks/cache-safe-injection.ts` so provider prompt-cache prefixes stay byte-stable.

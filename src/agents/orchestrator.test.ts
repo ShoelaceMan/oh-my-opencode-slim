@@ -49,4 +49,22 @@ describe('orchestrator prompt', () => {
     expect(prompt).not.toContain('End Turn After Background Tasks');
     expect(prompt).toContain('Do not immediately wait after spawning');
   });
+
+  test('uses compact advisory routing guidance when enabled', () => {
+    const prompt = buildOrchestratorPrompt(
+      undefined,
+      undefined,
+      true,
+      true,
+      undefined,
+      true,
+    );
+
+    expect(prompt).toContain('## Delegation Router');
+    expect(prompt).toContain('call `route_agent`');
+    expect(prompt).toContain('status: selected');
+    expect(prompt).toContain('route_type: agent');
+    expect(prompt).not.toContain('@explorer\n- Lane:');
+    expect(prompt).not.toContain('@librarian\n- Lane:');
+  });
 });

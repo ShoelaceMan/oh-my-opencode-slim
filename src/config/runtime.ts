@@ -43,6 +43,7 @@ import {
   type AgentOverrideConfig,
   type BackgroundJobsConfig,
   type CompanionConfig,
+  type DelegationRouterConfig,
   type FailoverConfig,
   MULTIPLEXER_MAIN_PANE_SIZE_DEFAULT,
   type MultiplexerConfig,
@@ -112,6 +113,15 @@ const DEFAULT_FALLBACK: FailoverConfig = {
   maxRetries: 3,
   initialRetryDelayMs: 0,
   retryDelayMs: 500,
+};
+
+export const DEFAULT_DELEGATION_ROUTER: DelegationRouterConfig = {
+  enabled: false,
+  model: 'typesafe/jev-1.13',
+  apiKeyEnv: 'OPENROUTER_API_KEY',
+  confidenceThreshold: 0.72,
+  timeoutMs: 5_000,
+  compactPrompt: true,
 };
 
 /** First model from an override's model field (string or array). */
@@ -349,6 +359,10 @@ export class RuntimeConfig {
 
   get webfetch(): WebfetchConfig {
     return this.pluginConfig?.webfetch ?? { enabled: true };
+  }
+
+  get delegationRouter(): DelegationRouterConfig {
+    return this.pluginConfig?.delegationRouter ?? DEFAULT_DELEGATION_ROUTER;
   }
 
   get acpAgents(): AcpAgentsConfig {

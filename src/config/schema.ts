@@ -743,6 +743,53 @@ export const WebfetchConfigSchema = z
 
 export type WebfetchConfig = z.infer<typeof WebfetchConfigSchema>;
 
+export const DelegationRouterConfigSchema = z
+  .object({
+    enabled: z
+      .boolean()
+      .default(false)
+      .describe('Opt in to model-assisted specialist routing.'),
+    model: ProviderModelIdSchema.default('typesafe/jev-1.13').describe(
+      'OpenRouter Decisions model used to select a destination for each bounded lane.',
+    ),
+    apiKeyEnv: z
+      .string()
+      .regex(
+        /^[A-Za-z_][A-Za-z0-9_]*$/,
+        'apiKeyEnv must be a valid environment variable name',
+      )
+      .default('OPENROUTER_API_KEY')
+      .describe(
+        'Name of the environment variable containing the OpenRouter API key. The key itself is never stored in plugin config.',
+      ),
+    confidenceThreshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.72)
+      .describe(
+        'Minimum decision confidence required before the router recommends automatic dispatch.',
+      ),
+    timeoutMs: z
+      .number()
+      .int()
+      .min(100)
+      .max(30_000)
+      .default(5_000)
+      .describe('OpenRouter Decisions request timeout in milliseconds.'),
+    compactPrompt: z
+      .boolean()
+      .default(true)
+      .describe(
+        'Replace the full specialist routing catalog in the orchestrator prompt with compact route_agent instructions.',
+      ),
+  })
+  .strict();
+
+export type DelegationRouterConfig = z.infer<
+  typeof DelegationRouterConfigSchema
+>;
+
 export const AcpAgentPermissionModeSchema = z.enum(['ask', 'allow', 'reject']);
 
 export const MAX_ACP_TIMEOUT_MS = 2_147_483_647;
@@ -863,6 +910,7 @@ export const RawPluginConfigSchema = z
     council: CouncilConfigSchema.optional(),
     companion: CompanionConfigSchema.optional(),
     webfetch: WebfetchConfigSchema.optional(),
+    delegationRouter: DelegationRouterConfigSchema.optional(),
     acpAgents: AcpAgentsConfigSchema.optional(),
   })
   .superRefine((value, ctx) => {

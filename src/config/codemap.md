@@ -28,6 +28,7 @@ The config system follows a layered architecture:
 | `AgentOverrideConfig` | Per-agent configuration (model, temperature, skills, MCPs) | schema.ts |
 | `CouncilConfig` | Multi-LLM council configuration with presets and execution modes | council-schema.ts |
 | `MultiplexerConfig` | Unified pane management configuration (tmux/zellij) | schema.ts |
+| `DelegationRouterConfig` | Opt-in OpenRouter Decisions routing, credential-env indirection, confidence gate, timeout, and prompt compaction | schema.ts |
 | `AgentMcpPolicy` | Per-agent default MCP lists and wildcard/exclusion parsing | agent-mcps.ts |
 | `ProviderModelIdSchema` | Zod schema enforcing `provider/model` ID format (provider segment excludes slashes/whitespace) | model-id-schema.ts |
 | Preset resolver | Preset normalization, layered merge (`mergePresetMaps`), and depth-first named-preset resolution (`resolvePresets` atomic, `PresetResolutionError` on unresolvable refs) | presets.ts |
@@ -143,7 +144,7 @@ This allows consumers to import directly from `src/config` rather than individua
 - `RuntimeConfig.reset(directory)`: Clear the singleton for a directory
 - `RuntimeConfig.captureHostConfig(opencodeConfig)`: Capture host-side config before the config hook mutates it
 - `setRuntimePreset(name)` / `getRuntimePreset()`: Runtime preset override (stale names clear it)
-- Derived getters: `plugin`, `preset`, `agents()`, `agent(name)`, `disabledAgents`, `disabledTools`, `disabledSkills`, `customAgentNames`, `disabledMcps`, `imageRouting`, `multiplexer`, `backgroundJobs` (incl. `orchestratorWake`), `fallback`, `webfetch`, `acpAgents`, `companion`, `council`, `autoUpdate`, `stripOrchestratorModel`, `setDefaultAgent`, `compactSidebar`, `modelArrays` (incl. councillor chains), `runtimeChains`, `primaryModel`, `smallModel()`, `hostAgent(name)`
+- Derived getters: `plugin`, `preset`, `agents()`, `agent(name)`, `disabledAgents`, `disabledTools`, `disabledSkills`, `customAgentNames`, `disabledMcps`, `imageRouting`, `multiplexer`, `backgroundJobs` (incl. `orchestratorWake`), `fallback`, `webfetch`, `delegationRouter`, `acpAgents`, `companion`, `council`, `autoUpdate`, `stripOrchestratorModel`, `setDefaultAgent`, `compactSidebar`, `modelArrays` (incl. councillor chains), `runtimeChains`, `primaryModel`, `smallModel()`, `hostAgent(name)`
 
 ### MCP Management
 
@@ -170,6 +171,7 @@ This allows consumers to import directly from `src/config` rather than individua
 - `fallback`: Failover/retry configuration
 - `council`: Council configuration with presets and execution modes
 - `companion`: Companion animation configuration
+- `delegationRouter`: Opt-in advisory specialist routing through OpenRouter Decisions; defaults disabled
 - `acpAgents`: ACP agent configurations
 
 ### AgentOverrideConfig

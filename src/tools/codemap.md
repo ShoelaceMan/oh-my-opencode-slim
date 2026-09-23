@@ -8,6 +8,7 @@ Centralized tool factory and registry for the OpenCode plugin system. This direc
 - **Code intelligence tools**: AST-grep pattern matching and transformation across languages
 - **Web capabilities**: Smart web fetching with caching and secondary model processing
 - **ACP integration**: External agent protocol execution
+- **Delegation routing**: Orchestrator-only advisory specialist selection through OpenRouter Decisions
 - **Preset switching**: On-disk preset persistence helpers used by the TUI `/preset` manager
 
 These tools enable agents to perform file operations, manage background tasks, and interact with external systems while maintaining security boundaries through the OpenCode tool schema. Multi-LLM council orchestration is agent-level (dynamic `councillor-<name>` subagents in `src/agents/`), not a tool.
@@ -30,6 +31,7 @@ Each tool is implemented as a factory function that returns a `ToolDefinition` r
 | **Task Management** | Background task communication, cancellation, status, results, revival, and HITL continuation control | `task-message.ts`, `cancel-task.ts`, `task-status.ts`, `task-result.ts`, `task-revive.ts`, `wait-for-user.ts` |
 | **Task Policy & Activity** | Shared live-status policy and activity tracking consumed by `task_status` and event wiring | `task-policy.ts` (`summarizeTaskStatus`), `task-activity.ts` (`TaskActivityTracker`) |
 | **ACP Integration** | External agent protocol execution with live progress streaming to the parent TUI (`ctx.metadata`) | `acp-run.ts`, ACP client implementation |
+| **Delegation Routing** | Typed, confidence-gated choice among enabled specialists or direct handling; never dispatches by itself | `route-agent.ts`, `src/delegation-router/catalog.ts` |
 | **Code Intelligence** | AST-based code manipulation | `ast-grep/` directory, `tools.ts` |
 | **Web Fetching** | Intelligent web content retrieval | `smartfetch/` directory, `tool.ts` |
 | **Preset Switching** | On-disk preset persistence for the TUI `/preset` manager | `preset-switch.ts`, TUI state integration |
@@ -229,6 +231,7 @@ Tools Layer → Web Layer
 export { createAcpRunTool } from './acp-run';
 export { ast_grep_replace, ast_grep_search } from './ast-grep';
 export { createCancelTaskTool } from './cancel-task';
+export { createRouteAgentTool } from './route-agent';
 export { createWebfetchTool } from './smartfetch';
 export { createTaskMessageTool } from './task-message';
 export { createTaskResultTool } from './task-result';
@@ -249,6 +252,12 @@ Preset switching is not a tool: `preset-switch.ts` exposes on-disk helpers
 - Configured in `src/config/schema.ts` as `AcpAgentsConfig`
 - Each agent requires: `command`, `args`, `cwd`, `permissionMode`
 - Supports: `ask` (prompt user), `reject` (auto-deny), `allow` (auto-approve)
+
+#### Delegation Router (route-agent.ts)
+- Registered only when `delegationRouter.enabled` is true and `route_agent` is not disabled
+- Reads the OpenRouter key from the configured environment-variable name
+- Sends one bounded lane and the stable enabled-agent criteria catalog to the Decisions API
+- Returns selected/uncertain/unavailable advisory output; errors fail open to manual routing
 
 #### Council Sessions (agent-level, not a tool)
 - Configured via council presets in plugin config

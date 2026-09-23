@@ -46,12 +46,17 @@ const PARALLEL_DELEGATION_EXAMPLES = [
   '- @observer + @explorer in parallel (visual analysis + code search)?',
 ];
 
+export const DELEGATION_ROUTER_GUIDANCE = `## Delegation Router
+
+For each bounded task whose destination is not fixed by the user or a deterministic rule, call \`route_agent\` before handling or dispatching it. The router chooses direct handling versus a specialist destination; you remain responsible for scope, validation, monitoring, reconciliation, and final verification. Never include credentials, tokens, private keys, or unrelated conversation content in the routing request.`;
+
 /**
  * Build the orchestrator prompt with dynamic agent filtering.
  * @param disabledAgents - Set of disabled agent names to exclude from the prompt
  * @param waitForUserEnabled - Whether explicit text-only HITL waiting is available
  * @param wakeSchedulerEnabled - Whether the orchestrator wake scheduler can resume the session after idle
  * @param hostFlavor - Host flavor marker ('v2' on OpenCode v2 hosts); selects the native delegation vocabulary
+ * @param compactDelegationRouting - Replace the full agent catalog with route-agent guidance
  * @returns The complete orchestrator prompt string
  */
 export function buildOrchestratorPrompt(
@@ -60,26 +65,29 @@ export function buildOrchestratorPrompt(
   waitForUserEnabled = true,
   wakeSchedulerEnabled = true,
   hostFlavor?: string,
+  compactDelegationRouting = false,
 ): string {
   // Native delegation vocabulary: `subagent(...)` with `agent` on v2 hosts,
   // `task(...)` with `subagent_type` on v1. Construction-time constant per
   // host, so the prompt stays byte-stable across a session (cache-safe).
   const vocab = delegationVocabulary(hostFlavor);
   // Filter agent descriptions
-  const enabledAgents = Object.entries(ROLE_ROUTING_BLOCKS)
-    .filter(([name]) => !disabledAgents?.has(name))
-    .filter(([name]) => !excludeDescriptions?.includes(name))
-    .map(([, desc]) => desc)
-    .join('\n\n');
+  const enabledAgents = compactDelegationRouting
+    ? DELEGATION_ROUTER_GUIDANCE
+    : Object.entries(ROLE_ROUTING_BLOCKS)
+        .filter(([name]) => !disabledAgents?.has(name))
+        .filter(([name]) => !excludeDescriptions?.includes(name))
+        .map(([, desc]) => desc)
+        .join('\n\n');
 
   // Filter parallel delegation examples - remove lines mentioning any disabled agent
-  const enabledParallelExamples = PARALLEL_DELEGATION_EXAMPLES.filter(
-    (line) => {
-      const mentions = [...line.matchAll(/@(\w+)/g)].map((m) => m[1]);
-      if (mentions.length === 0) return true;
-      return mentions.every((name) => !disabledAgents?.has(name));
-    },
-  ).join('\n');
+  const enabledParallelExamples = compactDelegationRouting
+    ? '- Multiple independent specialist lanes?\n- Research and implementation that can proceed independently?'
+    : PARALLEL_DELEGATION_EXAMPLES.filter((line) => {
+        const mentions = [...line.matchAll(/@(\w+)/g)].map((m) => m[1]);
+        if (mentions.length === 0) return true;
+        return mentions.every((name) => !disabledAgents?.has(name));
+      }).join('\n');
 
   const externalManualWaitInstruction = waitForUserEnabled
     ? '- When work must pause while the user completes an external manual operation, first give the user concrete manual steps, then call `wait_for_user` as your final tool action and end the turn. Do not rely on ordinary text alone to mark this waiting state, and do not call more tools after `wait_for_user`. Background tasks are not external manual work — never use `wait_for_user` to await them; the system resumes automatically via the Background Job Board and orchestrator wake scheduler.'
@@ -258,6 +266,7 @@ export function createOrchestratorAgent(
   waitForUserEnabled = true,
   wakeSchedulerEnabled = true,
   hostFlavor?: string,
+  compactDelegationRouting = false,
 ): AgentDefinition {
   const basePrompt = buildOrchestratorPrompt(
     disabledAgents,
@@ -265,6 +274,7 @@ export function createOrchestratorAgent(
     waitForUserEnabled,
     wakeSchedulerEnabled,
     hostFlavor,
+    compactDelegationRouting,
   );
   const prompt = resolvePrompt(
     'orchestrator',

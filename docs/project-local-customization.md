@@ -189,6 +189,7 @@ Every non-orchestrator agent (both built-in and custom) can define an `orchestra
 - **Display name rewriting:** Any mentions of `@<internalName>` within the `orchestratorPrompt` are automatically mapped to the agent's custom `displayName` if one was defined.
 - **Disabled agents:** If an agent is disabled via the `disabled_agents` config option, its `orchestratorPrompt` is **not** injected.
 - **Orchestrator agent constraint:** The orchestrator agent itself cannot define an `orchestratorPrompt`. Setting `agents.orchestrator.orchestratorPrompt` will be rejected by the schema.
+- **Compact delegation routing:** When `delegationRouter.enabled` and `delegationRouter.compactPrompt` are both true, these snippets are sent on demand as `route_agent` choice criteria instead of being appended permanently to the orchestrator prompt. Display-name rewriting and disabled-agent filtering still apply.
 
 ---
 

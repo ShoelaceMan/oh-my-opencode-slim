@@ -118,6 +118,53 @@ All config files support **JSONC** (JSON with Comments):
 |--------|------|---------|-------------|
 | `preset` | string | - | Active preset name (e.g. `"openai"`, `"best"`) |
 | `stripOrchestratorModel` | boolean | `false` | Preserve a runtime `/model` selection for the orchestrator after subagent dispatch by omitting its configured model from the SDK config. A selected preset's explicit `orchestrator.model` is retained. Without a runtime selection, this opt-in delegates the initial orchestrator choice to OpenCode's session default. |
+| `delegationRouter.enabled` | boolean | `false` | Opt in to advisory model-assisted specialist selection through OpenRouter's Decisions API. |
+| `delegationRouter.model` | string | `"typesafe/jev-1.13"` | Decisions model in `provider/model` form. The default is pinned for reproducibility. |
+| `delegationRouter.apiKeyEnv` | string | `"OPENROUTER_API_KEY"` | Environment-variable name containing the OpenRouter API key. The secret itself is never stored in plugin config. |
+| `delegationRouter.confidenceThreshold` | number | `0.72` | Minimum confidence (0–1) required before `route_agent` recommends dispatch. Lower-confidence answers fall back to manual routing. |
+| `delegationRouter.timeoutMs` | integer | `5000` | Decisions request timeout (100–30000 ms). |
+| `delegationRouter.compactPrompt` | boolean | `true` | Move built-in, custom, and ACP routing criteria out of the orchestrator prompt and into the on-demand decision request. |
+
+### Delegation Router (Jev / OpenRouter Decisions)
+
+The delegation router is disabled by default. When enabled, the orchestrator
+decomposes work into bounded lanes and calls `route_agent` once per lane. Jev
+returns a typed destination and confidence; it never launches a subagent.
+OpenCode's native task/subagent tool remains responsible for dispatch, and the
+orchestrator still owns scope, write ownership, monitoring, reconciliation, and
+verification.
+
+```jsonc
+{
+  "delegationRouter": {
+    "enabled": true,
+    "model": "typesafe/jev-1.13",
+    "confidenceThreshold": 0.72,
+    "timeoutMs": 5000,
+    "compactPrompt": true,
+  },
+}
+```
+
+Set the API key in the environment that launches OpenCode:
+
+```bash
+export OPENROUTER_API_KEY="..."
+```
+
+OpenCode does not expose stored provider credentials back to plugins, so the
+router cannot reuse an OpenRouter key from OpenCode's auth store. To use a
+different environment variable, set `delegationRouter.apiKeyEnv` to its name.
+
+With `compactPrompt: true`, built-in routing blocks and each agent's
+`orchestratorPrompt` become Jev choice criteria instead of permanent
+orchestrator context. Those criteria—including project-specific custom-agent
+and ACP routing guidance—are sent to OpenRouter with the bounded lane, so do
+not place secrets in routing descriptions. A missing key, timeout, HTTP error,
+malformed response, or confidence below the threshold returns the candidate
+catalog to the orchestrator for manual selection. `disabled_tools:
+["route_agent"]` disables both the tool and prompt compaction, preserving the
+legacy routing prompt.
 
 ### Runtime Preset Switching
 

@@ -39,7 +39,8 @@ Each agent is a **prompt-driven specialist** with a factory function that create
 3. **Permission application**: `applyDefaultPermissions()` sets read/write permissions based on agent type
 4. **Task-rejection instruction**: `appendTaskRejectionInstruction()` appends the "outside your role" instruction to specialist prompts (`task-rejection.ts`)
 5. **Display name injection**: Orchestrator prompt rewrites `@agent` mentions to user-configured display names
-6. **Configuration export**: `getAgentConfigs()` converts `AgentDefinition` to OpenCode SDK format with classification metadata
+6. **Optional compact routing**: When the delegation router is enabled, the full routing catalog moves to `route_agent` criteria and the prompt keeps only compact advisory-tool instructions
+7. **Configuration export**: `getAgentConfigs()` converts `AgentDefinition` to OpenCode SDK format with classification metadata
 
 ## Flow
 
@@ -142,6 +143,11 @@ The orchestrator's system prompt contains dynamic routing rules that reference a
 - **@council**: Multi-model consensus synthesis (orchestrator dispatches councillors directly in flatten mode)
 
 These rules are filtered based on disabled agents and injected into the orchestrator's prompt at startup.
+
+With `delegationRouter.enabled` and `compactPrompt`, the same enabled-agent
+criteria (including custom and ACP `orchestratorPrompt` values) are assembled
+outside the prompt and supplied on demand to Jev. The orchestrator retains lane
+decomposition, native dispatch, ownership, monitoring, and validation duties.
 
 ## File Structure
 

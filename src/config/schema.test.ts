@@ -503,6 +503,38 @@ describe('InterviewConfigSchema outputFolder', () => {
   });
 });
 
+describe('PluginConfigSchema delegationRouter', () => {
+  it('applies safe defaults only when the opt-in block is present', () => {
+    const absent = PluginConfigSchema.parse({});
+    expect(absent.delegationRouter).toBeUndefined();
+
+    const configured = PluginConfigSchema.parse({
+      delegationRouter: { enabled: true },
+    });
+    expect(configured.delegationRouter).toEqual({
+      enabled: true,
+      model: 'typesafe/jev-1.13',
+      apiKeyEnv: 'OPENROUTER_API_KEY',
+      confidenceThreshold: 0.72,
+      timeoutMs: 5_000,
+      compactPrompt: true,
+    });
+  });
+
+  it('validates confidence, timeout, model, and env-var names', () => {
+    for (const delegationRouter of [
+      { enabled: true, confidenceThreshold: 1.1 },
+      { enabled: true, timeoutMs: 99 },
+      { enabled: true, model: 'jev-without-provider' },
+      { enabled: true, apiKeyEnv: 'NOT-AN-ENV-NAME' },
+    ]) {
+      expect(PluginConfigSchema.safeParse({ delegationRouter }).success).toBe(
+        false,
+      );
+    }
+  });
+});
+
 describe('PluginConfigSchema backgroundJobs', () => {
   it('defaults board injection to the legacy latest strategy', () => {
     const result = PluginConfigSchema.safeParse({ backgroundJobs: {} });

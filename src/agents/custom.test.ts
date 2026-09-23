@@ -61,6 +61,103 @@ describe('custom-agent creation', () => {
     );
   });
 
+  test('moves routing hints out of the orchestrator prompt when compact routing is enabled', () => {
+    const config: PluginConfig = {
+      delegationRouter: {
+        enabled: true,
+        model: 'typesafe/jev-1.13',
+        apiKeyEnv: 'OPENROUTER_API_KEY',
+        confidenceThreshold: 0.72,
+        timeoutMs: 5_000,
+        compactPrompt: true,
+      },
+      agents: {
+        explorer: {
+          orchestratorPrompt:
+            '@explorer\n- Lane: Project-specific reconnaissance',
+        },
+      },
+    };
+
+    const agents = createAgents(runtimeFor(config));
+    const orchestrator = agents.find((agent) => agent.name === 'orchestrator');
+    const explorer = agents.find((agent) => agent.name === 'explorer');
+    const orchestratorPermission = orchestrator?.config.permission as Record<
+      string,
+      unknown
+    >;
+    const explorerPermission = explorer?.config.permission as Record<
+      string,
+      unknown
+    >;
+
+    expect(orchestrator?.config.prompt).toContain('## Delegation Router');
+    expect(orchestrator?.config.prompt).not.toContain(
+      'Project-specific reconnaissance',
+    );
+    expect(orchestratorPermission.route_agent).toBe('allow');
+    expect(explorerPermission.route_agent).toBe('deny');
+  });
+
+  test('keeps the legacy routing prompt when route_agent is disabled', () => {
+    const config: PluginConfig = {
+      delegationRouter: {
+        enabled: true,
+        model: 'typesafe/jev-1.13',
+        apiKeyEnv: 'OPENROUTER_API_KEY',
+        confidenceThreshold: 0.72,
+        timeoutMs: 5_000,
+        compactPrompt: true,
+      },
+      disabled_tools: ['route_agent'],
+      agents: {
+        explorer: {
+          orchestratorPrompt:
+            '@explorer\n- Lane: Project-specific reconnaissance',
+        },
+      },
+    };
+
+    const agents = createAgents(runtimeFor(config));
+    const orchestrator = agents.find((agent) => agent.name === 'orchestrator');
+    const permission = orchestrator?.config.permission as Record<
+      string,
+      unknown
+    >;
+
+    expect(orchestrator?.config.prompt).toContain(
+      'Project-specific reconnaissance',
+    );
+    expect(orchestrator?.config.prompt).not.toContain('## Delegation Router');
+    expect(permission.route_agent).toBeUndefined();
+  });
+
+  test('adds router guidance to a fully replaced orchestrator prompt', () => {
+    const config: PluginConfig = {
+      delegationRouter: {
+        enabled: true,
+        model: 'typesafe/jev-1.13',
+        apiKeyEnv: 'OPENROUTER_API_KEY',
+        confidenceThreshold: 0.72,
+        timeoutMs: 5_000,
+        compactPrompt: true,
+      },
+      agents: {
+        orchestrator: {
+          prompt: 'Custom orchestrator policy.',
+        },
+      },
+    };
+
+    const orchestrator = createAgents(runtimeFor(config)).find(
+      (agent) => agent.name === 'orchestrator',
+    );
+    expect(orchestrator?.config.prompt).toStartWith(
+      'Custom orchestrator policy.',
+    );
+    expect(orchestrator?.config.prompt).toContain('## Delegation Router');
+  });
+
   test('skips custom agents without a model', () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 

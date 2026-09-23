@@ -24,6 +24,11 @@ import {
   TOAST_DURATION_MS,
 } from './config/constants';
 import { RuntimeConfig } from './config/runtime';
+import { applyOrchestratorModelConfig } from './config/strip-orchestrator-model';
+import {
+  buildDelegationRouteCandidates,
+  createOpenRouterCredentialBridge,
+} from './delegation-router';
 import { getBuildInfo } from './generated/build-info';
 import { HEALTH_CHECK, minimumExpectedToolCount } from './health-check';
 import {
@@ -49,6 +54,7 @@ import {
   stoppedJobRecoveryReason,
 } from './hooks';
 import { stripTaggedContent } from './hooks/cache-safe-injection';
+import { createDelegationEnforcementHook } from './hooks/delegation-enforcement/hook';
 import { processImageAttachments } from './hooks/image-hook';
 import { clearAllWakeSessions } from './hooks/orchestrator-wake/wake-gate';
 import { PHASE_REMINDER_METADATA_KEY } from './hooks/phase-reminder';
@@ -76,6 +82,7 @@ import {
   createAcpRunTool,
   createCancelTaskTool,
   createMarketplaceTools,
+  createRouteAgentTool,
   createTaskMessageTool,
   createTaskReplyTool,
   createTaskResultTool,
@@ -393,12 +400,19 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
   let taskStatusTools: ReturnType<typeof createTaskStatusTool>;
   const taskActivityTracker = new TaskActivityTracker();
   let waitForUserTools: ReturnType<typeof createWaitForUserTool>;
+  let routeAgentTools:
+    | ReturnType<typeof createRouteAgentTool>
+    | Record<string, never>;
+  let openRouterCredentialBridge:
+    | ReturnType<typeof createOpenRouterCredentialBridge>
+    | undefined;
   let acpRunTools: Record<string, ReturnType<typeof createAcpRunTool>>;
   let webfetch: ReturnType<typeof createWebfetchTool>;
   let tools: Record<string, ToolDefinition>;
   let rewriteDisplayNameMentions: ReturnType<
     typeof createDisplayNameMentionRewriter
   >;
+  let delegationEnforcement: ReturnType<typeof createDelegationEnforcementHook>;
 
   // Counters for post-init health check (set inside try, checked outside)
   let toolCount = 0;
@@ -1117,6 +1131,26 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
         backgroundJobCoordinator.hasRunning(sessionID),
     });
 
+    const delegationRouterActive =
+      runtime.delegationRouter.enabled &&
+      !runtime.disabledTools.includes('route_agent');
+    openRouterCredentialBridge = delegationRouterActive
+      ? createOpenRouterCredentialBridge()
+      : undefined;
+    routeAgentTools = delegationRouterActive
+      ? createRouteAgentTool({
+          config: runtime.delegationRouter,
+          candidates: buildDelegationRouteCandidates(runtime, agentDefs),
+          resolveAgentName: (agent) => resolveRuntimeAgentName(runtime, agent),
+          getOpenRouterCredential: openRouterCredentialBridge?.getCredential,
+        })
+      : {};
+    delegationEnforcement = createDelegationEnforcementHook({
+      config: { ...runtime.delegationRouter, enabled: delegationRouterActive },
+      getAgent: (sessionID) => sessionMetadata.getAgent(sessionID),
+      resolveAgentName: (agent) => resolveRuntimeAgentName(runtime, agent),
+    });
+
     const shouldRegisterWebfetch = runtime.webfetch.enabled !== false;
     tools = {
       ...taskCancelTools,
@@ -1126,6 +1160,7 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
       ...taskReviveTools,
       ...taskStatusTools,
       ...waitForUserTools,
+      ...routeAgentTools,
       ...acpRunTools,
       ...(shouldRegisterWebfetch ? { webfetch } : {}),
       ast_grep_search,
@@ -1438,6 +1473,8 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
     agent: agents,
 
     tool: tools,
+
+    auth: openRouterCredentialBridge?.auth,
 
     mcp: mcps,
 
@@ -1830,6 +1867,7 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
     },
 
     'tool.execute.before': async (input, output) => {
+      delegationEnforcement.before(input, output);
       await applyPatch['tool.execute.before'](input as never, output as never);
       // Rewrite guessed non-existing absolute paths BEFORE the search
       // guard: the guard blocks grep/glob on missing paths, so running
@@ -2089,6 +2127,9 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
                   true,
                   true,
                   hostFlavor,
+                  runtime.delegationRouter.enabled &&
+                    runtime.delegationRouter.compactPrompt &&
+                    !runtime.disabledTools.includes('route_agent'),
                 );
         // Dedup by the EFFECTIVE prompt, not by default-prompt markers:
         // a custom replacement without `<Role>` previously slipped past
@@ -2206,6 +2247,7 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
         output as never,
       );
       await taskSessionManagerAfter(input, output);
+      delegationEnforcement.after(input, output);
     },
   };
 };

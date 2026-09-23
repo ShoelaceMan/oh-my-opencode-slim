@@ -3500,6 +3500,48 @@
       },
       "additionalProperties": false
     },
+    "delegationRouter": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Opt in to model-assisted specialist routing.",
+          "type": "boolean"
+        },
+        "model": {
+          "default": "typesafe/jev-1.13",
+          "description": "OpenRouter Decisions model used to select a destination for each bounded lane.",
+          "type": "string",
+          "pattern": "^[^/\\s]+\\/.+$"
+        },
+        "apiKeyEnv": {
+          "default": "OPENROUTER_API_KEY",
+          "description": "Name of the environment variable containing the OpenRouter API key. The key itself is never stored in plugin config.",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "confidenceThreshold": {
+          "default": 0.72,
+          "description": "Minimum decision confidence required before the router recommends automatic dispatch.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "timeoutMs": {
+          "default": 5000,
+          "description": "OpenRouter Decisions request timeout in milliseconds.",
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 30000
+        },
+        "compactPrompt": {
+          "default": true,
+          "description": "Replace the full specialist routing catalog in the orchestrator prompt with compact route_agent instructions.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "acpAgents": {
       "type": "object",
       "propertyNames": {
