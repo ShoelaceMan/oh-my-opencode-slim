@@ -768,7 +768,7 @@ export const DelegationRouterConfigSchema = z
       .max(1)
       .default(0.72)
       .describe(
-        'Minimum decision confidence required before the router recommends automatic dispatch.',
+        'Minimum certainty required for the Noul delegation gate and minimum choice confidence required for automatic specialist routing.',
       ),
     timeoutMs: z
       .number()

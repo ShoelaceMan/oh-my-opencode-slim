@@ -62,7 +62,9 @@ describe('orchestrator prompt', () => {
 
     expect(prompt).toContain('## Delegation Router');
     expect(prompt).toContain('call `route_agent`');
+    expect(prompt).toContain('Noul decision');
     expect(prompt).toContain('status: selected');
+    expect(prompt).toContain('route_type: direct');
     expect(prompt).toContain('route_type: agent');
     expect(prompt).not.toContain('@explorer\n- Lane:');
     expect(prompt).not.toContain('@librarian\n- Lane:');

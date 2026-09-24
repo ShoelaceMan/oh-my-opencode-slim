@@ -48,7 +48,11 @@ const PARALLEL_DELEGATION_EXAMPLES = [
 
 export const DELEGATION_ROUTER_GUIDANCE = `## Delegation Router
 
-For each bounded task whose destination is not fixed by the user or a deterministic rule, call \`route_agent\` before handling or dispatching it. The router chooses direct handling versus a specialist destination; you remain responsible for scope, validation, monitoring, reconciliation, and final verification. Never include credentials, tokens, private keys, or unrelated conversation content in the routing request.`;
+Delegation gating and specialist selection are delegated to \`route_agent\`. For each bounded task whose handling is not fixed by the user or a deterministic rule, call \`route_agent\` before either handling it yourself or dispatching it. Send only the bounded objective and concise routing-relevant constraints. Never include credentials, tokens, private keys, or unrelated conversation content.
+
+The router first uses a Noul decision to answer whether the task should be delegated. When it reports \`status: selected\` with \`route_type: direct\`, handle the task yourself. When it reports \`status: selected\` with \`route_type: agent\`, dispatch that route through the native subagent tool. Use the returned candidate guidance plus your own judgment when it reports \`uncertain\` or \`unavailable\`.
+
+The router decides direct handling versus delegation and, when delegating, chooses a destination. You remain responsible for decomposition, scope, write ownership, validation ownership, dispatch, monitoring, reconciliation, and final verification.`;
 
 /**
  * Build the orchestrator prompt with dynamic agent filtering.
@@ -89,6 +93,17 @@ export function buildOrchestratorPrompt(
         return mentions.every((name) => !disabledAgents?.has(name));
       }).join('\n');
 
+  const routingThreshold = compactDelegationRouting
+    ? `- Call \`route_agent\` before handling or dispatching each bounded task unless the user explicitly fixed the destination.
+- Handle a selected direct route yourself; dispatch a selected agent route through the native subagent tool.
+- For uncertain or unavailable decisions, apply the legacy routing threshold manually and use the returned candidate catalog.
+- If two or more parts can proceed independently, route and dispatch them in parallel before starting dependent work.
+- A selected route chooses the specialist, not the scope: you still own the delegation contract and validation plan.`
+    : `- Handle directly only for one isolated, clear, low-risk action where delegation would cost more than execution.
+- Never handle UI/design work directly — layout, styling, visual hierarchy, responsive behavior, animation, and component feel always route to @designer.
+- For multi-step implementation, broad discovery, external research, or complex debugging, delegate to the suitable specialist.
+- If two or more parts can proceed independently, dispatch them in parallel before starting dependent work.
+- Do not delegate merely because an agent exists. Do not keep substantive work entirely in the orchestrator merely because each individual step seems easy.`;
   const externalManualWaitInstruction = waitForUserEnabled
     ? '- When work must pause while the user completes an external manual operation, first give the user concrete manual steps, then call `wait_for_user` as your final tool action and end the turn. Do not rely on ordinary text alone to mark this waiting state, and do not call more tools after `wait_for_user`. Background tasks are not external manual work — never use `wait_for_user` to await them; the system resumes automatically via the Background Job Board and orchestrator wake scheduler.'
     : '- When work must pause while the user completes an external manual operation, first give the user concrete manual steps, then use the `question` tool as the blocking boundary and ask them to respond when finished. `wait_for_user` is disabled, so do not reference or call it.';
@@ -123,11 +138,7 @@ Choose the path that optimizes all four.
 Review available agents and lane rules. Before beginning non-trivial work, identify which parts can proceed independently.
 
 **Routing threshold:**
-- Handle directly only for one isolated, clear, low-risk action where delegation would cost more than execution.
-- Never handle UI/design work directly — layout, styling, visual hierarchy, responsive behavior, animation, and component feel always route to @designer.
-- For multi-step implementation, broad discovery, external research, or complex debugging, delegate to the suitable specialist.
-- If two or more parts can proceed independently, dispatch them in parallel before starting dependent work.
-- Do not delegate merely because an agent exists. Do not keep substantive work entirely in the orchestrator merely because each individual step seems easy.
+${routingThreshold}
 
 **Dispatch efficiency:**
 - Reference paths/lines, don't paste files (\`src/app.ts:42\` not full contents)

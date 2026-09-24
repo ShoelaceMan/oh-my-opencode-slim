@@ -31,7 +31,7 @@ Each tool is implemented as a factory function that returns a `ToolDefinition` r
 | **Task Management** | Background task communication, cancellation, status, results, revival, and HITL continuation control | `task-message.ts`, `cancel-task.ts`, `task-status.ts`, `task-result.ts`, `task-revive.ts`, `wait-for-user.ts` |
 | **Task Policy & Activity** | Shared live-status policy and activity tracking consumed by `task_status` and event wiring | `task-policy.ts` (`summarizeTaskStatus`), `task-activity.ts` (`TaskActivityTracker`) |
 | **ACP Integration** | External agent protocol execution with live progress streaming to the parent TUI (`ctx.metadata`) | `acp-run.ts`, ACP client implementation |
-| **Delegation Routing** | Typed, confidence-gated choice among enabled specialists or direct handling; never dispatches by itself | `route-agent.ts`, `src/delegation-router/catalog.ts` |
+| **Delegation Routing** | Noul-gated direct/delegate decision followed by a confidence-gated choice among enabled specialists; never dispatches by itself | `route-agent.ts`, `src/delegation-router/catalog.ts` |
 | **Code Intelligence** | AST-based code manipulation | `ast-grep/` directory, `tools.ts` |
 | **Web Fetching** | Intelligent web content retrieval | `smartfetch/` directory, `tool.ts` |
 | **Preset Switching** | On-disk preset persistence for the TUI `/preset` manager | `preset-switch.ts`, TUI state integration |
@@ -257,7 +257,8 @@ Preset switching is not a tool: `preset-switch.ts` exposes on-disk helpers
 - Registered only when `delegationRouter.enabled` is true and `route_agent` is not disabled
 - Uses the OpenCode-stored OpenRouter credential when available, then the
   configured environment-variable fallback
-- Sends one bounded lane and the stable enabled-agent criteria catalog to the Decisions API
+- Sends one bounded task to the Decisions API as a Noul gate
+- Sends the stable enabled-agent criteria catalog in a second request only when the Noul gate selects delegation
 - Returns selected/uncertain/unavailable advisory output; errors fail open to manual routing
 
 #### Council Sessions (agent-level, not a tool)

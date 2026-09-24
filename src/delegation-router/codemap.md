@@ -16,10 +16,13 @@ process.
 3. Each candidate receives host-facing dispatch name and routing criteria.
 4. `openrouter-auth.ts` receives the existing OpenRouter bearer credential
    through OpenCode's provider-auth loader when the router is enabled.
-5. `src/tools/route-agent.ts` sends the catalog with one bounded lane to the
-   OpenRouter Decisions API.
-6. Jev returns a typed choice; the tool reports it to the orchestrator without
-   launching any agent.
+5. `src/tools/route-agent.ts` sends one bounded task to the OpenRouter Decisions
+   API as a Noul delegation gate.
+6. A confident Noul `false` returns direct handling without transmitting the
+   specialist catalog; a confident `true` triggers a second request containing
+   the catalog and a typed specialist choice.
+7. The tool reports the decision to the orchestrator and never launches an
+   agent.
 
 ## Cache and Security Boundaries
 

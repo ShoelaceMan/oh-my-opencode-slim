@@ -39,7 +39,7 @@ Each agent is a **prompt-driven specialist** with a factory function that create
 3. **Permission application**: `applyDefaultPermissions()` sets read/write permissions based on agent type
 4. **Task-rejection instruction**: `appendTaskRejectionInstruction()` appends the "outside your role" instruction to specialist prompts (`task-rejection.ts`)
 5. **Display name injection**: Orchestrator prompt rewrites `@agent` mentions to user-configured display names
-6. **Optional compact routing**: When the delegation router is enabled, the full routing catalog moves to `route_agent` criteria and the prompt keeps only compact advisory-tool instructions
+6. **Optional compact routing**: When the delegation router is enabled, the full routing catalog moves to `route_agent` criteria and the prompt keeps only compact Noul-gate and advisory-dispatch instructions
 7. **Configuration export**: `getAgentConfigs()` converts `AgentDefinition` to OpenCode SDK format with classification metadata
 
 ## Flow

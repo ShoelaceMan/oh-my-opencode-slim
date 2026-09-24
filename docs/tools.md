@@ -54,16 +54,18 @@ conservatively passes the path through.
 
 | Tool | Description |
 |------|-------------|
-| `route_agent` | Ask the configured OpenRouter Decisions model to choose a specialist or direct handling for one bounded lane |
+| `route_agent` | Ask the configured OpenRouter Decisions model whether to delegate one bounded task and, if so, which specialist should receive it |
 
 `route_agent` is registered only when `delegationRouter.enabled` is true and
 the tool is not listed in `disabled_tools`. It is orchestrator-only and
 advisory: it returns `selected`, `uncertain`, or `unavailable`, but never
-dispatches work. The orchestrator must use the native task/subagent tool after
-a selected specialist route. Missing credentials and network/response failures
+dispatches work. A selected Noul `false` returns direct handling. A selected
+Noul `true` triggers a second Decisions request containing the specialist
+catalog; after that choice, the orchestrator must use the native task/subagent
+tool. Missing credentials, ambiguous decisions, and network/response failures
 fail open with a manual candidate catalog.
 
-Only the lane objective and concise routing constraints are sent to OpenRouter.
+Only the task objective and concise routing constraints are sent to OpenRouter.
 Do not include credentials, tokens, private keys, or unrelated conversation
 content. See [Delegation Router configuration](configuration.md#delegation-router-jev--openrouter-decisions).
 

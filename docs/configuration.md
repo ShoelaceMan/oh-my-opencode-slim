@@ -121,18 +121,23 @@ All config files support **JSONC** (JSON with Comments):
 | `delegationRouter.enabled` | boolean | `false` | Opt in to advisory model-assisted specialist selection through OpenRouter's Decisions API. |
 | `delegationRouter.model` | string | `"typesafe/jev-1.13"` | Decisions model in `provider/model` form. The default is pinned for reproducibility. |
 | `delegationRouter.apiKeyEnv` | string | `"OPENROUTER_API_KEY"` | Fallback environment-variable name used when OpenCode has no stored OpenRouter credential. The secret itself is never stored in plugin config. |
-| `delegationRouter.confidenceThreshold` | number | `0.72` | Minimum confidence (0–1) required before `route_agent` recommends dispatch. Lower-confidence answers fall back to manual routing. |
-| `delegationRouter.timeoutMs` | integer | `5000` | Decisions request timeout (100–30000 ms). |
+| `delegationRouter.confidenceThreshold` | number | `0.72` | Minimum certainty (0–1) required for the Noul delegation gate and minimum choice confidence required for specialist routing. Ambiguous answers fall back to manual routing. |
+| `delegationRouter.timeoutMs` | integer | `5000` | Timeout for each Decisions request (100–30000 ms). |
 | `delegationRouter.compactPrompt` | boolean | `true` | Move built-in, custom, and ACP routing criteria out of the orchestrator prompt and into the on-demand decision request. |
 
 ### Delegation Router (Jev / OpenRouter Decisions)
 
 The delegation router is disabled by default. When enabled, the orchestrator
-decomposes work into bounded lanes and calls `route_agent` once per lane. Jev
-returns a typed destination and confidence; it never launches a subagent.
-OpenCode's native task/subagent tool remains responsible for dispatch, and the
-orchestrator still owns scope, write ownership, monitoring, reconciliation, and
-verification.
+calls `route_agent` before handling or dispatching each bounded task unless the
+user already fixed the destination. The tool first sends Jev a small Noul
+question: should this task be delegated? A confident `false` lets the
+orchestrator handle the task directly without sending the specialist catalog.
+A confident `true` triggers a second Decisions request that chooses an enabled
+specialist. Ambiguous answers fall back to the orchestrator's manual judgment.
+
+Jev never launches a subagent. OpenCode's native task/subagent tool remains
+responsible for dispatch, and the orchestrator still owns decomposition, scope,
+write ownership, monitoring, reconciliation, and verification.
 
 ```jsonc
 {
@@ -164,10 +169,13 @@ file directly and never writes the credential into plugin configuration.
 With `compactPrompt: true`, built-in routing blocks and each agent's
 `orchestratorPrompt` become Jev choice criteria instead of permanent
 orchestrator context. Those criteria—including project-specific custom-agent
-and ACP routing guidance—are sent to OpenRouter with the bounded lane, so do
-not place secrets in routing descriptions. A missing key, timeout, HTTP error,
-malformed response, or confidence below the threshold returns the candidate
-catalog to the orchestrator for manual selection. `disabled_tools:
+and ACP routing guidance—are sent to OpenRouter only after the Noul gate selects
+delegation, so do not place secrets in routing descriptions. The Noul
+probability is interpreted symmetrically: at the default threshold, `>= 0.72`
+selects delegation, `<= 0.28` selects direct handling, and the middle band is
+uncertain. A missing key, timeout, HTTP error, malformed response, or
+below-threshold decision returns the candidate catalog to the orchestrator for
+manual selection. `disabled_tools:
 ["route_agent"]` disables both the tool and prompt compaction, preserving the
 legacy routing prompt.
 

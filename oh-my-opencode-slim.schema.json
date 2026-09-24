@@ -3522,7 +3522,7 @@
         },
         "confidenceThreshold": {
           "default": 0.72,
-          "description": "Minimum decision confidence required before the router recommends automatic dispatch.",
+          "description": "Minimum certainty required for the Noul delegation gate and minimum choice confidence required for automatic specialist routing.",
           "type": "number",
           "minimum": 0,
           "maximum": 1

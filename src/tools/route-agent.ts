@@ -4,9 +4,10 @@ import type { DelegationRouteCandidate } from '../delegation-router';
 
 const z = tool.schema;
 const DECISIONS_ENDPOINT = 'https://openrouter.ai/api/alpha/decisions';
-const DIRECT_CHOICE = '__direct__';
 const DIRECT_CRITERIA =
   'Handle directly only when this is one isolated, clear, low-risk action and delegation overhead exceeds execution. Do not choose direct for multi-step implementation, broad discovery, external research, design work, or complex debugging.';
+const DELEGATE_CRITERIA =
+  'Delegate when the task benefits from specialist capabilities or isolated context, including multi-step implementation, broad discovery, external research, design work, complex debugging, or independent parallel work.';
 
 type FetchLike = typeof globalThis.fetch;
 
@@ -23,6 +24,10 @@ interface DecisionAnswer {
   choice: string;
   confidence?: number;
   probabilities?: Record<string, number>;
+}
+
+interface NoulAnswer {
+  noul: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,6 +51,19 @@ function parseDecisionAnswer(value: unknown): DecisionAnswer | undefined {
     : undefined;
 
   return { choice: value.choice, confidence, probabilities };
+}
+
+function parseNoulAnswer(value: unknown): NoulAnswer | undefined {
+  if (
+    !isRecord(value) ||
+    value.type !== 'noul' ||
+    typeof value.noul !== 'number' ||
+    !Number.isFinite(value.noul)
+  ) {
+    return undefined;
+  }
+
+  return { noul: value.noul };
 }
 
 function normalizeConfidence(value: number | undefined): number {
@@ -94,6 +112,55 @@ function unavailableResult(
   });
 }
 
+type DecisionRequestResult =
+  | { ok: true; payload: unknown }
+  | { ok: false; reason: string };
+
+async function requestDecision(
+  fetchImpl: FetchLike,
+  apiKey: string,
+  config: DelegationRouterConfig,
+  state: string,
+  questions: Record<string, unknown>,
+): Promise<DecisionRequestResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetchImpl(DECISIONS_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        state,
+        questions,
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    return {
+      ok: false,
+      reason: controller.signal.aborted ? 'request_timeout' : 'request_failed',
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    return { ok: false, reason: `http_error:${response.status}` };
+  }
+
+  try {
+    return { ok: true, payload: await response.json() };
+  } catch {
+    return { ok: false, reason: 'invalid_json' };
+  }
+}
+
 /**
  * Create the orchestrator-only advisory routing tool backed by OpenRouter's
  * typed Decisions API. It never dispatches a subagent itself.
@@ -107,22 +174,21 @@ export function createRouteAgentTool(
     choice: `__agent__${candidate.name}`,
     candidate,
   }));
-  const choiceToRoute = new Map([
-    [DIRECT_CHOICE, 'direct'],
-    ...candidateChoices.map(
+  const choiceToRoute = new Map(
+    candidateChoices.map(
       ({ choice, candidate }) => [choice, candidate.name] as const,
     ),
-  ]);
+  );
 
   const route_agent = tool({
     description:
-      'Choose the best destination for one already-decomposed work lane. This is advisory only: it does not dispatch the agent. Send only the bounded objective and concise routing constraints; never include credentials, tokens, private keys, or unrelated conversation content.',
+      'Decide whether one bounded task should be delegated and, when it should, choose the best specialist. This is advisory only: it does not dispatch the agent. Send only the bounded objective and concise routing constraints; never include credentials, tokens, private keys, or unrelated conversation content.',
     args: {
       objective: z
         .string()
         .min(1)
         .max(4_000)
-        .describe('One bounded lane objective to route'),
+        .describe('One bounded task objective to gate and route'),
       context: z
         .string()
         .max(8_000)
@@ -151,15 +217,8 @@ export function createRouteAgentTool(
         );
       }
 
-      const criteria = Object.fromEntries([
-        [DIRECT_CHOICE, DIRECT_CRITERIA],
-        ...candidateChoices.map(({ choice, candidate }) => [
-          choice,
-          candidate.criteria,
-        ]),
-      ]);
       const state = [
-        `Bounded lane objective:\n${args.objective.trim()}`,
+        `Bounded task objective:\n${args.objective.trim()}`,
         args.context?.trim()
           ? `Routing-relevant constraints:\n${args.context.trim()}`
           : undefined,
@@ -167,85 +226,140 @@ export function createRouteAgentTool(
         .filter((part): part is string => Boolean(part))
         .join('\n\n');
 
-      const controller = new AbortController();
-      const timeout = setTimeout(
-        () => controller.abort(),
-        options.config.timeoutMs,
-      );
-
-      let response: Response;
-      try {
-        response = await fetchImpl(DECISIONS_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: options.config.model,
-            state,
-            questions: {
-              route: {
-                type: 'choice',
-                instructions:
-                  'Choose exactly one destination for this bounded work lane. Match capabilities and constraints; do not optimize for prose quality.',
-                criteria,
-              },
+      const delegationResult = await requestDecision(
+        fetchImpl,
+        apiKey,
+        options.config,
+        state,
+        {
+          should_delegate: {
+            type: 'noul',
+            instructions:
+              'Should the orchestrator delegate this bounded task to a specialist instead of handling the entire task itself?',
+            criteria: {
+              true: DELEGATE_CRITERIA,
+              false: DIRECT_CRITERIA,
             },
-          }),
-          signal: controller.signal,
+          },
+        },
+      );
+      if (!delegationResult.ok) {
+        return unavailableResult(delegationResult.reason, options.candidates);
+      }
+
+      const delegationPayload = delegationResult.payload;
+      const answers =
+        isRecord(delegationPayload) && isRecord(delegationPayload.answers)
+          ? delegationPayload.answers
+          : undefined;
+      const delegationAnswer = parseNoulAnswer(answers?.should_delegate);
+      if (!delegationAnswer) {
+        return unavailableResult(
+          'invalid_delegation_decision',
+          options.candidates,
+        );
+      }
+
+      const delegationProbability = normalizeConfidence(delegationAnswer.noul);
+      const shouldDelegate = delegationProbability >= 0.5;
+      const delegationCertainty = Math.max(
+        delegationProbability,
+        1 - delegationProbability,
+      );
+      const model =
+        isRecord(delegationPayload) &&
+        typeof delegationPayload.model === 'string'
+          ? delegationPayload.model
+          : options.config.model;
+
+      if (delegationCertainty < options.config.confidenceThreshold) {
+        return JSON.stringify({
+          protocol: 'oh-my-opencode-slim.delegation-router.v1',
+          status: 'uncertain',
+          decision_type: 'noul',
+          should_delegate: null,
+          delegation_probability: delegationProbability,
+          threshold: options.config.confidenceThreshold,
+          model,
+          dispatch: 'manual',
+          candidates: manualCandidates(options.candidates),
         });
-      } catch {
-        return unavailableResult(
-          controller.signal.aborted ? 'request_timeout' : 'request_failed',
-          options.candidates,
-        );
-      } finally {
-        clearTimeout(timeout);
       }
 
-      if (!response.ok) {
-        return unavailableResult(
-          `http_error:${response.status}`,
-          options.candidates,
-        );
+      if (!shouldDelegate) {
+        return JSON.stringify({
+          protocol: 'oh-my-opencode-slim.delegation-router.v1',
+          status: 'selected',
+          decision_type: 'noul',
+          should_delegate: false,
+          delegation_probability: delegationProbability,
+          route_type: 'direct',
+          route: 'direct',
+          model,
+          dispatch: 'handle_directly',
+        });
       }
 
-      let payload: unknown;
-      try {
-        payload = await response.json();
-      } catch {
-        return unavailableResult('invalid_json', options.candidates);
+      if (candidateChoices.length === 0) {
+        return unavailableResult('no_route_candidates', options.candidates);
       }
 
-      const answer = isRecord(payload)
-        ? parseDecisionAnswer(
-            isRecord(payload.answers) ? payload.answers.route : undefined,
-          )
-        : undefined;
+      const criteria = Object.fromEntries(
+        candidateChoices.map(({ choice, candidate }) => [
+          choice,
+          candidate.criteria,
+        ]),
+      );
+      const routeResult = await requestDecision(
+        fetchImpl,
+        apiKey,
+        options.config,
+        state,
+        {
+          route: {
+            type: 'choice',
+            instructions:
+              'Choose exactly one specialist destination for this delegated task. Match capabilities and constraints; do not optimize for prose quality.',
+            criteria,
+          },
+        },
+      );
+      if (!routeResult.ok) {
+        return unavailableResult(routeResult.reason, options.candidates);
+      }
+
+      const routePayload = routeResult.payload;
+      const routeAnswers =
+        isRecord(routePayload) && isRecord(routePayload.answers)
+          ? routePayload.answers
+          : undefined;
+      const answer = parseDecisionAnswer(routeAnswers?.route);
       if (!answer || !choiceToRoute.has(answer.choice)) {
-        return unavailableResult('invalid_decision', options.candidates);
+        return unavailableResult('invalid_route_decision', options.candidates);
       }
 
       const confidence = normalizeConfidence(
         answer.confidence ?? answer.probabilities?.[answer.choice],
       );
-      const model =
-        isRecord(payload) && typeof payload.model === 'string'
-          ? payload.model
-          : options.config.model;
       const alternatives = rankedAlternatives(answer, choiceToRoute);
       const route = choiceToRoute.get(answer.choice) as string;
+      const routeModel =
+        isRecord(routePayload) && typeof routePayload.model === 'string'
+          ? routePayload.model
+          : options.config.model;
 
       if (confidence < options.config.confidenceThreshold) {
         return JSON.stringify({
           protocol: 'oh-my-opencode-slim.delegation-router.v1',
           status: 'uncertain',
-          route_type: answer.choice === DIRECT_CHOICE ? 'direct' : 'agent',
+          decision_type: 'choice',
+          should_delegate: true,
+          delegation_probability: delegationProbability,
+          route_type: 'agent',
           route,
           confidence,
           threshold: options.config.confidenceThreshold,
-          model,
+          model: routeModel,
           alternatives,
           dispatch: 'manual',
           candidates: manualCandidates(options.candidates),
@@ -255,15 +369,15 @@ export function createRouteAgentTool(
       return JSON.stringify({
         protocol: 'oh-my-opencode-slim.delegation-router.v1',
         status: 'selected',
-        route_type: answer.choice === DIRECT_CHOICE ? 'direct' : 'agent',
+        decision_type: 'choice',
+        should_delegate: true,
+        delegation_probability: delegationProbability,
+        route_type: 'agent',
         route,
         confidence,
-        model,
+        model: routeModel,
         alternatives,
-        dispatch:
-          answer.choice === DIRECT_CHOICE
-            ? 'handle_directly'
-            : 'delegate_with_native_subagent_tool',
+        dispatch: 'delegate_with_native_subagent_tool',
       });
     },
   });

@@ -132,6 +132,38 @@ describe('custom-agent creation', () => {
     expect(permission.route_agent).toBeUndefined();
   });
 
+  test('keeps legacy routing unchanged when the global router flag is off', () => {
+    const config: PluginConfig = {
+      delegationRouter: {
+        enabled: false,
+        model: 'typesafe/jev-1.13',
+        apiKeyEnv: 'OPENROUTER_API_KEY',
+        confidenceThreshold: 0.72,
+        timeoutMs: 5_000,
+        compactPrompt: true,
+      },
+      agents: {
+        explorer: {
+          orchestratorPrompt:
+            '@explorer\n- Lane: Project-specific reconnaissance',
+        },
+      },
+    };
+
+    const agents = createAgents(runtimeFor(config));
+    const orchestrator = agents.find((agent) => agent.name === 'orchestrator');
+    const permission = orchestrator?.config.permission as Record<
+      string,
+      unknown
+    >;
+
+    expect(orchestrator?.config.prompt).toContain(
+      'Project-specific reconnaissance',
+    );
+    expect(orchestrator?.config.prompt).not.toContain('## Delegation Router');
+    expect(permission.route_agent).toBeUndefined();
+  });
+
   test('adds router guidance to a fully replaced orchestrator prompt', () => {
     const config: PluginConfig = {
       delegationRouter: {
