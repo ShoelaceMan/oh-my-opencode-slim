@@ -287,13 +287,16 @@ export function createOrchestratorAgent(
     hostFlavor,
     compactDelegationRouting,
   );
-  const prompt = resolvePrompt(
+  let prompt = resolvePrompt(
     'orchestrator',
     undefined,
     customPrompt,
     basePrompt,
     customAppendPrompt,
   );
+  if (compactDelegationRouting && !prompt.includes('## Delegation Router')) {
+    prompt = `${prompt}\n\n${DELEGATION_ROUTER_GUIDANCE}`;
+  }
 
   const definition: AgentDefinition = {
     name: 'orchestrator',

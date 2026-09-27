@@ -29,6 +29,7 @@ import { createOracleAgent } from './oracle';
 import {
   type AgentDefinition,
   createOrchestratorAgent,
+  DELEGATION_ROUTER_GUIDANCE,
   resolvePrompt,
 } from './orchestrator';
 import { appendTaskRejectionInstruction } from './task-rejection';
@@ -732,6 +733,14 @@ export function createAgents(
   if (orchestratorOverride) {
     applyOverrides(orchestrator, orchestratorOverride);
   }
+  if (
+    runtime.delegationRouter.enabled &&
+    runtime.delegationRouter.compactPrompt &&
+    !runtime.disabledTools.includes('route_agent') &&
+    !orchestrator.config.prompt?.includes('## Delegation Router')
+  ) {
+    orchestrator.config.prompt = `${orchestrator.config.prompt ?? ''}\n\n${DELEGATION_ROUTER_GUIDANCE}`;
+  }
   applyModelInheritance(
     orchestrator,
     orchestratorOverride,
@@ -824,7 +833,12 @@ export function createAgents(
 
   let updatedPrompt = orchestrator.config.prompt ?? '';
 
-  if (rewrittenOverrides.length > 0) {
+  const compactRoutingPrompt =
+    runtime.delegationRouter.enabled &&
+    runtime.delegationRouter.compactPrompt &&
+    !runtime.disabledTools.includes('route_agent');
+
+  if (rewrittenOverrides.length > 0 && !compactRoutingPrompt) {
     updatedPrompt = `${updatedPrompt}\n\n# Project-specific routing guidance\n\n${rewrittenOverrides.join(
       '\n\n',
     )}`;
@@ -853,11 +867,17 @@ export function createAgents(
 
   if (
     runtime.delegationRouter.enabled &&
-    !runtime.disabledTools.includes('route_agent') &&
-    typeof orchestrator.config.permission === 'object' &&
-    orchestrator.config.permission !== null
+    !runtime.disabledTools.includes('route_agent')
   ) {
-    orchestrator.config.permission.route_agent ??= 'allow';
+    for (const agent of [orchestrator, ...allSubAgents]) {
+      if (
+        typeof agent.config.permission === 'object' &&
+        agent.config.permission !== null
+      ) {
+        agent.config.permission.route_agent ??=
+          agent.name === 'orchestrator' ? 'allow' : 'deny';
+      }
+    }
   }
 
   return [orchestrator, ...allSubAgents];
