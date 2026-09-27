@@ -13,8 +13,27 @@ const OPERATIONAL_TOOLS = new Set([
   'task',
   'subagent',
 ]);
+const SAFE_TOOLS = new Set([
+  ROUTE_TOOL,
+  'read',
+  'list',
+  'glob',
+  'grep',
+  'lsp_diagnostics',
+  'ast_grep_search',
+  'task_status',
+  'task_result',
+  'task_message',
+  'task_cancel',
+  'task_revive',
+  'wait_for_user',
+]);
 
-type Decision = { routeType: 'direct' | 'agent' | 'manual'; route: string };
+type Decision = {
+  routeType: 'direct' | 'agent' | 'manual';
+  route: string;
+  dispatchUsed: boolean;
+};
 
 interface ToolBeforeInput {
   tool: string;
@@ -42,7 +61,7 @@ function parseDecision(output: unknown): Decision | undefined {
     const value = JSON.parse(output) as Record<string, unknown>;
     if (value.status === 'unavailable' || value.status === 'uncertain') {
       return value.dispatch === 'manual'
-        ? { routeType: 'manual', route: 'manual' }
+        ? { routeType: 'manual', route: 'manual', dispatchUsed: false }
         : undefined;
     }
     if (value.status !== 'selected') return undefined;
@@ -55,6 +74,7 @@ function parseDecision(output: unknown): Decision | undefined {
         typeof value.route === 'string' && value.route !== 'direct'
           ? value.route
           : 'direct',
+      dispatchUsed: false,
     };
   } catch {
     return undefined;
@@ -85,7 +105,12 @@ export function createDelegationEnforcementHook(options: HookOptions) {
     before(input: ToolBeforeInput, output: ToolBeforeOutput): void {
       if (!activeFor(input.sessionID)) return;
       const tool = input.tool.toLowerCase();
-      if (!OPERATIONAL_TOOLS.has(tool) || tool === ROUTE_TOOL) return;
+      if (SAFE_TOOLS.has(tool)) return;
+      if (!OPERATIONAL_TOOLS.has(tool)) {
+        throw new Error(
+          '[delegation-router] routing required: unknown tool is blocked while enforcement is enabled',
+        );
+      }
 
       const decision = decisions.get(input.sessionID as string);
       if (!decision) {
@@ -94,7 +119,11 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         );
       }
 
-      if (decision.routeType === 'agent' && !TASK_TOOLS.has(tool)) {
+      if (
+        decision.routeType === 'agent' &&
+        !decision.dispatchUsed &&
+        !TASK_TOOLS.has(tool)
+      ) {
         throw new Error(
           `[delegation-router] Jev selected ${decision.route}; dispatch that specialist with task before using operational tools directly`,
         );
@@ -107,6 +136,11 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       }
 
       if (decision.routeType === 'agent' && TASK_TOOLS.has(tool)) {
+        if (decision.dispatchUsed) {
+          throw new Error(
+            '[delegation-router] this route was already dispatched; call route_agent again for the next specialist task',
+          );
+        }
         const args =
           output.args && typeof output.args === 'object'
             ? (output.args as Record<string, unknown>)
@@ -122,6 +156,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
             `[delegation-router] Jev selected ${decision.route}; task target was ${typeof target === 'string' ? target : 'missing'}`,
           );
         }
+        decision.dispatchUsed = true;
       }
     },
 
