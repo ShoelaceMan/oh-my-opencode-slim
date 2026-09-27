@@ -24,7 +24,6 @@ import {
   TOAST_DURATION_MS,
 } from './config/constants';
 import { RuntimeConfig } from './config/runtime';
-import { applyOrchestratorModelConfig } from './config/strip-orchestrator-model';
 import {
   buildDelegationRouteCandidates,
   createOpenRouterCredentialBridge,
@@ -1475,8 +1474,6 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
     agent: agents,
 
     tool: tools,
-
-    auth: openRouterCredentialBridge?.auth,
 
     mcp: mcps,
 
