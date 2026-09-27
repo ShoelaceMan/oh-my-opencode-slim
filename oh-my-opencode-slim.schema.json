@@ -3508,6 +3508,11 @@
           "description": "Opt in to model-assisted specialist routing.",
           "type": "boolean"
         },
+        "enforce": {
+          "default": false,
+          "description": "When true, the orchestrator must obtain a route_agent decision before operational tools or specialist dispatch.",
+          "type": "boolean"
+        },
         "model": {
           "default": "typesafe/jev-1.13",
           "description": "OpenRouter Decisions model used to select a destination for each bounded lane.",

@@ -513,6 +513,7 @@ describe('PluginConfigSchema delegationRouter', () => {
     });
     expect(configured.delegationRouter).toEqual({
       enabled: true,
+      enforce: false,
       model: 'typesafe/jev-1.13',
       apiKeyEnv: 'OPENROUTER_API_KEY',
       confidenceThreshold: 0.72,

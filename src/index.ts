@@ -2001,6 +2001,9 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
       // v2 admission tracker — agent-discovery forwards agent/model
       // without parts.
       const messageID = input.messageID ?? output?.message?.id;
+      if (agent === 'orchestrator' && messageID) {
+        delegationEnforcement.reset(input.sessionID);
+      }
       const inputParts = Array.isArray(input.parts) ? input.parts : [];
       const outputParts = Array.isArray(output?.parts) ? output.parts : [];
       const partsInternal = [...inputParts, ...outputParts].some((part) =>

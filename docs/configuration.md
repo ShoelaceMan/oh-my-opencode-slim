@@ -119,6 +119,7 @@ All config files support **JSONC** (JSON with Comments):
 | `preset` | string | - | Active preset name (e.g. `"openai"`, `"best"`) |
 | `stripOrchestratorModel` | boolean | `false` | Preserve a runtime `/model` selection for the orchestrator after subagent dispatch by omitting its configured model from the SDK config. A selected preset's explicit `orchestrator.model` is retained. Without a runtime selection, this opt-in delegates the initial orchestrator choice to OpenCode's session default. |
 | `delegationRouter.enabled` | boolean | `false` | Opt in to advisory model-assisted specialist selection through OpenRouter's Decisions API. |
+| `delegationRouter.enforce` | boolean | `false` | Require a Jev route decision before the orchestrator uses operational tools or dispatches a specialist. |
 | `delegationRouter.model` | string | `"typesafe/jev-1.13"` | Decisions model in `provider/model` form. The default is pinned for reproducibility. |
 | `delegationRouter.apiKeyEnv` | string | `"OPENROUTER_API_KEY"` | Fallback environment-variable name used when OpenCode has no stored OpenRouter credential. The secret itself is never stored in plugin config. |
 | `delegationRouter.confidenceThreshold` | number | `0.72` | Minimum certainty (0–1) required for the Noul delegation gate and minimum choice confidence required for specialist routing. Ambiguous answers fall back to manual routing. |
@@ -129,7 +130,9 @@ All config files support **JSONC** (JSON with Comments):
 
 The delegation router is disabled by default. When enabled, the orchestrator
 calls `route_agent` before handling or dispatching each bounded task unless the
-user already fixed the destination. The tool first sends Jev a small Noul
+user already fixed the destination. With `enforce: true`, the plugin rejects
+operational tool calls until that decision exists, so this is no longer prompt
+guidance that the orchestrator can silently skip. The tool first sends Jev a small Noul
 question: should this task be delegated? A confident `false` lets the
 orchestrator handle the task directly without sending the specialist catalog.
 A confident `true` triggers a second Decisions request that chooses an enabled

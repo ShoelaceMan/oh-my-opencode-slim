@@ -749,6 +749,12 @@ export const DelegationRouterConfigSchema = z
       .boolean()
       .default(false)
       .describe('Opt in to model-assisted specialist routing.'),
+    enforce: z
+      .boolean()
+      .default(false)
+      .describe(
+        'When true, the orchestrator must obtain a route_agent decision before operational tools or specialist dispatch.',
+      ),
     model: ProviderModelIdSchema.default('typesafe/jev-1.13').describe(
       'OpenRouter Decisions model used to select a destination for each bounded lane.',
     ),
