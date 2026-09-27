@@ -1146,6 +1146,8 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
         })
       : {};
     delegationEnforcement = createDelegationEnforcementHook({
+      // If route_agent is disabled, enforcement must also be inactive; there
+      // is otherwise no way for an orchestrator to establish a decision.
       config: { ...runtime.delegationRouter, enabled: delegationRouterActive },
       getAgent: (sessionID) => sessionMetadata.getAgent(sessionID),
       resolveAgentName: (agent) => resolveRuntimeAgentName(runtime, agent),
