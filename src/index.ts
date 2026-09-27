@@ -1830,6 +1830,7 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
 
         if (sessionID) {
           sessionLifecycle.dispatchSessionDeleted(sessionID);
+          delegationEnforcement.reset(sessionID);
         }
         companionManager.onSessionDeleted(sessionID);
         if (sessionID) {
