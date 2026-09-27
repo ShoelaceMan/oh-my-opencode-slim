@@ -29,6 +29,15 @@ const SAFE_TOOLS = new Set([
   'wait_for_user',
 ]);
 
+function isCouncilTarget(agent: string | undefined): boolean {
+  return Boolean(
+    agent &&
+      (agent === 'council' ||
+        agent === 'councillor' ||
+        agent.startsWith('councillor-')),
+  );
+}
+
 type Decision = {
   routeType: 'direct' | 'agent' | 'manual';
   route: string;
@@ -151,7 +160,10 @@ export function createDelegationEnforcementHook(options: HookOptions) {
             ? options.resolveAgentName(target)
             : undefined;
         const resolvedRoute = options.resolveAgentName(decision.route);
-        if (resolvedTarget !== resolvedRoute) {
+        if (
+          resolvedTarget !== resolvedRoute &&
+          !isCouncilTarget(resolvedTarget)
+        ) {
           throw new Error(
             `[delegation-router] Jev selected ${decision.route}; task target was ${typeof target === 'string' ? target : 'missing'}`,
           );

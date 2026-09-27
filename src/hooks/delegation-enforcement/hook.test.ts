@@ -30,7 +30,10 @@ describe('delegation enforcement', () => {
 
   test('blocks unclassified tools while enforcement is enabled', () => {
     expect(() =>
-      hook().before({ tool: 'mcp_mutating_tool', sessionID: 's1' }, { args: {} }),
+      hook().before(
+        { tool: 'mcp_mutating_tool', sessionID: 's1' },
+        { args: {} },
+      ),
     ).toThrow('unknown tool is blocked');
   });
 
