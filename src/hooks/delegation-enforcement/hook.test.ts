@@ -199,6 +199,35 @@ describe('delegation enforcement', () => {
     ).toThrow('dispatch that specialist');
   });
 
+  test('allows council to gather read-only context before dispatch', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'council',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before({ tool: 'webfetch', sessionID: 's1' }, { args: {} }),
+    ).not.toThrow();
+    expect(() =>
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git diff -- README.md' } },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git diff > /tmp/context' } },
+      ),
+    ).toThrow('dispatch that specialist');
+  });
+
   test('requires dispatch before mutating marketplace tools', () => {
     const routed = hook();
     routed.after(

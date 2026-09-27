@@ -59,6 +59,41 @@ interface HookOptions {
   getTaskAgent?: (sessionID: string, taskID: string) => string | undefined;
 }
 
+const COUNCIL_CONTEXT_COMMANDS = new Set([
+  'cat',
+  'cut',
+  'find',
+  'git',
+  'gh',
+  'grep',
+  'head',
+  'jq',
+  'ls',
+  'pwd',
+  'rg',
+  'sed',
+  'sort',
+  'tail',
+  'tr',
+  'uniq',
+  'curl',
+  'wget',
+]);
+
+function isCouncilContextBash(args: unknown): boolean {
+  if (typeof args !== 'object' || args === null) return false;
+  const command = (args as Record<string, unknown>).command;
+  if (typeof command !== 'string' || !command.trim()) return false;
+  // Permit only pipelines/chains made entirely from known inspection and
+  // retrieval commands. Shell redirection/substitution is deliberately not
+  // accepted because it can turn a seemingly read-only command into a write.
+  if (/[>;`]|\$\(/.test(command)) return false;
+  return command.split(/\s*(?:\|\||&&|\|)\s*/).every((part) => {
+    const executable = part.trim().split(/\s+/, 1)[0];
+    return COUNCIL_CONTEXT_COMMANDS.has(executable);
+  });
+}
+
 function parseDecision(output: unknown): Decision | undefined {
   if (typeof output !== 'string') return undefined;
   try {
@@ -132,6 +167,20 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         throw new Error(
           '[delegation-router] routing required: call route_agent for this bounded task before using operational tools or dispatching a specialist',
         );
+      }
+
+      // Council needs to collect the PR/issue/document context before it can
+      // dispatch councillors. Keep this escape hatch explicitly read-only:
+      // webfetch is retrieval-only, while bash is limited to inspection and
+      // retrieval commands above. Mutating tools still require dispatch.
+      if (
+        decision.routeType === 'agent' &&
+        decision.route === 'council' &&
+        !decision.dispatchUsed &&
+        (tool === 'webfetch' ||
+          (tool === 'bash' && isCouncilContextBash(output.args)))
+      ) {
+        return;
       }
 
       if (

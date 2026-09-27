@@ -2452,6 +2452,9 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
       // provider credential from the host request headers so the delegation
       // router can reuse a stored OpenRouter login without requiring an env
       // var. The value remains process-local and is never logged or persisted.
+      // A new setup may be created during hot reload before the old cleanup
+      // runs; clear that generation's stale process-global value first.
+      clearOpenRouterCredential(undefined);
       let setupCredential: string | undefined;
       const credentialReg = await ctx.session.hook(
         'model.request',
