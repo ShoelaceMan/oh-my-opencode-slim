@@ -142,6 +142,7 @@ async function requestDecision(
       signal: controller.signal,
     });
   } catch {
+    clearTimeout(timeout);
     return {
       ok: false,
       reason: controller.signal.aborted ? 'request_timeout' : 'request_failed',
