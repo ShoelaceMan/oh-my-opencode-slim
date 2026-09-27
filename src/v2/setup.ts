@@ -22,6 +22,7 @@ import {
 } from '../cli/custom-skills';
 import { loadPluginConfig } from '../config/loader';
 import { InterviewConfigSchema } from '../config/schema';
+import { setOpenRouterCredential } from '../delegation-router/openrouter-auth';
 import { getBuildInfo } from '../generated/build-info';
 import { getCurrentRuntimePackageJsonPath } from '../hooks/auto-update-checker/checker';
 import {
@@ -2443,6 +2444,22 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
         disposers.push(() => headerReg.dispose());
         log('[v2] chat.headers bridge registered (session.model.request)');
       }
+
+      // v2 does not invoke the v1 auth loader. Capture the already-resolved
+      // provider credential from the host request headers so the delegation
+      // router can reuse a stored OpenRouter login without requiring an env
+      // var. The value remains process-local and is never logged or persisted.
+      const credentialReg = await ctx.session.hook(
+        'model.request',
+        async (event) => {
+          if (event.model.providerID !== 'openrouter') return;
+          const authorization = event.headers.authorization;
+          if (typeof authorization !== 'string') return;
+          const match = authorization.match(/^Bearer\s+(.+)$/i);
+          if (match) setOpenRouterCredential(match[1]);
+        },
+      );
+      disposers.push(() => credentialReg.dispose());
 
       // v2 native compaction hook: strip the plugin's tagged
       // synthetic injections from the host's summarization request so

@@ -5,6 +5,12 @@ interface CredentialBridge {
   getCredential: () => string | undefined;
 }
 
+let sharedCredential: string | undefined;
+
+export function setOpenRouterCredential(value: string | undefined): void {
+  sharedCredential = value?.trim() || undefined;
+}
+
 function readBearerCredential(auth: unknown): string | undefined {
   if (typeof auth !== 'object' || auth === null) return undefined;
 
@@ -28,18 +34,16 @@ function readBearerCredential(auth: unknown): string | undefined {
  * login so enabling the bridge does not break `/connect openrouter`.
  */
 export function createOpenRouterCredentialBridge(): CredentialBridge {
-  let credential: string | undefined;
-
   return {
-    getCredential: () => credential,
+    getCredential: () => sharedCredential,
     auth: {
       provider: 'openrouter',
       methods: [{ type: 'api', label: 'API key' }],
       loader: async (getAuth) => {
         try {
-          credential = readBearerCredential(await getAuth());
+          setOpenRouterCredential(readBearerCredential(await getAuth()));
         } catch {
-          credential = undefined;
+          setOpenRouterCredential(undefined);
         }
         return {};
       },
