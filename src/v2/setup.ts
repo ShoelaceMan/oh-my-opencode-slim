@@ -2459,7 +2459,12 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
           if (match) setOpenRouterCredential(match[1]);
         },
       );
-      disposers.push(() => credentialReg.dispose());
+      disposers.push(() => {
+        credentialReg.dispose();
+        // Do not let a later v2 setup inherit this setup's bearer token when
+        // it has no OpenRouter credential of its own.
+        setOpenRouterCredential(undefined);
+      });
 
       // v2 native compaction hook: strip the plugin's tagged
       // synthetic injections from the host's summarization request so

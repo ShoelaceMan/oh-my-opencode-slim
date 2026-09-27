@@ -51,6 +51,11 @@ export function buildDelegationRouteCandidates(
   agentDefs: readonly AgentDefinition[],
 ): DelegationRouteCandidate[] {
   const routable = agentDefs.filter(shouldRouteTo);
+  // Council is normally driven by its explicit multi-seat procedure, but it
+  // must remain selectable when enforcement is enabled so that the procedure
+  // is not deadlocked by the route gate.
+  const council = agentDefs.find((agent) => agent.name === 'council');
+  if (runtime.council && council) routable.push(council);
   const displayNames = new Map(
     routable
       .filter((agent) => Boolean(agent.displayName))
