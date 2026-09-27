@@ -146,18 +146,20 @@ async function requestDecision(
       ok: false,
       reason: controller.signal.aborted ? 'request_timeout' : 'request_failed',
     };
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  if (!response.ok) {
-    return { ok: false, reason: `http_error:${response.status}` };
   }
 
   try {
+    if (!response.ok) {
+      return { ok: false, reason: `http_error:${response.status}` };
+    }
     return { ok: true, payload: await response.json() };
   } catch {
-    return { ok: false, reason: 'invalid_json' };
+    return {
+      ok: false,
+      reason: controller.signal.aborted ? 'request_timeout' : 'invalid_json',
+    };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
