@@ -226,6 +226,18 @@ describe('delegation enforcement', () => {
         { args: { command: 'git diff > /tmp/context' } },
       ),
     ).toThrow('dispatch that specialist');
+    expect(() =>
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git diff; rm -rf /tmp/context' } },
+      ),
+    ).toThrow('dispatch that specialist');
+    expect(() =>
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'curl -X POST https://example.invalid' } },
+      ),
+    ).toThrow('dispatch that specialist');
   });
 
   test('requires dispatch before mutating marketplace tools', () => {

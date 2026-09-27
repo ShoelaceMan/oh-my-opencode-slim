@@ -80,6 +80,59 @@ const COUNCIL_CONTEXT_COMMANDS = new Set([
   'wget',
 ]);
 
+const COUNCIL_GIT_READ_COMMANDS = new Set([
+  'branch',
+  'diff',
+  'log',
+  'ls-files',
+  'rev-parse',
+  'show',
+  'status',
+]);
+
+function isCouncilReadOnlyCommand(part: string): boolean {
+  const tokens = part.trim().split(/\s+/);
+  const executable = tokens.shift();
+  if (!executable || !COUNCIL_CONTEXT_COMMANDS.has(executable)) return false;
+
+  if (executable === 'git') {
+    const subcommand = tokens.find((token) => !token.startsWith('-'));
+    return Boolean(subcommand && COUNCIL_GIT_READ_COMMANDS.has(subcommand));
+  }
+  if (executable === 'gh') {
+    const subcommand = tokens.find((token) => !token.startsWith('-'));
+    if (subcommand === 'api') {
+      return !tokens.some((token) =>
+        ['-X', '--method', '-f', '--raw-field', '-F', '--field'].includes(
+          token,
+        ),
+      );
+    }
+    return subcommand === 'pr' || subcommand === 'issue';
+  }
+  if (executable === 'curl') {
+    return !tokens.some(
+      (token, index) =>
+        [
+          '-d',
+          '--data',
+          '--data-raw',
+          '--data-binary',
+          '--upload-file',
+        ].includes(token) ||
+        (['-X', '--request'].includes(token) &&
+          tokens[index + 1]?.toUpperCase() !== 'GET'),
+    );
+  }
+  if (executable === 'sed') return !tokens.includes('-i');
+  if (executable === 'find') {
+    return !tokens.some((token) =>
+      ['-delete', '-exec', '-execdir'].includes(token),
+    );
+  }
+  return true;
+}
+
 function isCouncilContextBash(args: unknown): boolean {
   if (typeof args !== 'object' || args === null) return false;
   const command = (args as Record<string, unknown>).command;
@@ -87,11 +140,8 @@ function isCouncilContextBash(args: unknown): boolean {
   // Permit only pipelines/chains made entirely from known inspection and
   // retrieval commands. Shell redirection/substitution is deliberately not
   // accepted because it can turn a seemingly read-only command into a write.
-  if (/[>;`]|\$\(/.test(command)) return false;
-  return command.split(/\s*(?:\|\||&&|\|)\s*/).every((part) => {
-    const executable = part.trim().split(/\s+/, 1)[0];
-    return COUNCIL_CONTEXT_COMMANDS.has(executable);
-  });
+  if (/[>;`;\n\r]|\$\(/.test(command)) return false;
+  return command.split(/\s*(?:\|\||&&|\|)\s*/).every(isCouncilReadOnlyCommand);
 }
 
 function parseDecision(output: unknown): Decision | undefined {
