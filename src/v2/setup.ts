@@ -22,7 +22,10 @@ import {
 } from '../cli/custom-skills';
 import { loadPluginConfig } from '../config/loader';
 import { InterviewConfigSchema } from '../config/schema';
-import { setOpenRouterCredential } from '../delegation-router/openrouter-auth';
+import {
+  clearOpenRouterCredential,
+  setOpenRouterCredential,
+} from '../delegation-router/openrouter-auth';
 import { getBuildInfo } from '../generated/build-info';
 import { getCurrentRuntimePackageJsonPath } from '../hooks/auto-update-checker/checker';
 import {
@@ -2449,6 +2452,7 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
       // provider credential from the host request headers so the delegation
       // router can reuse a stored OpenRouter login without requiring an env
       // var. The value remains process-local and is never logged or persisted.
+      let setupCredential: string | undefined;
       const credentialReg = await ctx.session.hook(
         'model.request',
         async (event) => {
@@ -2456,14 +2460,17 @@ export function createV2Setup(): (ctx: V2Context) => Promise<V2Cleanup> {
           const authorization = event.headers.authorization;
           if (typeof authorization !== 'string') return;
           const match = authorization.match(/^Bearer\s+(.+)$/i);
-          if (match) setOpenRouterCredential(match[1]);
+          if (match) {
+            setupCredential = match[1];
+            setOpenRouterCredential(setupCredential);
+          }
         },
       );
       disposers.push(() => {
         credentialReg.dispose();
         // Do not let a later v2 setup inherit this setup's bearer token when
         // it has no OpenRouter credential of its own.
-        setOpenRouterCredential(undefined);
+        clearOpenRouterCredential(setupCredential);
       });
 
       // v2 native compaction hook: strip the plugin's tagged

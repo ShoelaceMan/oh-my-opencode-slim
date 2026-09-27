@@ -11,6 +11,13 @@ export function setOpenRouterCredential(value: string | undefined): void {
   sharedCredential = value?.trim() || undefined;
 }
 
+/** Clear only the credential owned by a particular setup generation. */
+export function clearOpenRouterCredential(expected: string | undefined): void {
+  if (expected === undefined || sharedCredential === expected) {
+    sharedCredential = undefined;
+  }
+}
+
 function readBearerCredential(auth: unknown): string | undefined {
   if (typeof auth !== 'object' || auth === null) return undefined;
 

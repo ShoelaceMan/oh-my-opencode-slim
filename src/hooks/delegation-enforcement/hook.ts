@@ -137,8 +137,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       if (
         decision.routeType === 'agent' &&
         !decision.dispatchUsed &&
-        !TASK_TOOLS.has(tool) &&
-        decision.route !== 'council'
+        !TASK_TOOLS.has(tool)
       ) {
         throw new Error(
           `[delegation-router] Jev selected ${decision.route}; dispatch that specialist with task before using operational tools directly`,
@@ -165,16 +164,27 @@ export function createDelegationEnforcementHook(options: HookOptions) {
             ? (output.args as Record<string, unknown>)
             : {};
         const taskID = typeof args.task_id === 'string' ? args.task_id : '';
+        if (!taskID) {
+          throw new Error(
+            '[delegation-router] task_revive requires a task_id so ownership can be verified',
+          );
+        }
         const taskAgent = options.getTaskAgent?.(
           input.sessionID as string,
           taskID,
         );
-        if (
-          decision.routeType === 'agent' &&
-          taskAgent &&
-          options.resolveAgentName(taskAgent) !==
-            options.resolveAgentName(decision.route)
-        ) {
+        if (!taskAgent) {
+          throw new Error(
+            `[delegation-router] cannot revive ${taskID} without a recorded task owner`,
+          );
+        }
+        const resolvedTaskAgent = options.resolveAgentName(taskAgent);
+        const ownsRevivedTask =
+          decision.route === 'council'
+            ? resolvedTaskAgent === 'council' ||
+              resolvedTaskAgent.startsWith('councillor-')
+            : resolvedTaskAgent === options.resolveAgentName(decision.route);
+        if (!ownsRevivedTask) {
           throw new Error(
             `[delegation-router] Jev selected ${decision.route}; task_revive targets ${taskAgent}`,
           );

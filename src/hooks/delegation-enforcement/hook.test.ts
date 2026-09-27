@@ -42,7 +42,7 @@ describe('delegation enforcement', () => {
   });
 
   test('requires the selected specialist for delegated work', () => {
-    const routed = hook();
+    const routed = hook('orchestrator', () => 'runner');
     routed.after(
       { tool: 'route_agent', sessionID: 's1' },
       {
@@ -91,7 +91,7 @@ describe('delegation enforcement', () => {
   });
 
   test('requires a route for revive and allows it after an agent route', () => {
-    const routed = hook();
+    const routed = hook('orchestrator', () => 'runner');
     expect(() =>
       routed.before(
         { tool: 'task_revive', sessionID: 's1' },
@@ -136,6 +136,26 @@ describe('delegation enforcement', () => {
     ).toThrow('targets operator');
   });
 
+  test('fails closed when a revived task has no recorded owner', () => {
+    const routed = hook('orchestrator', () => undefined);
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'runner',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'task_revive', sessionID: 's1' },
+        { args: { task_id: 'unknown-task' } },
+      ),
+    ).toThrow('without a recorded task owner');
+  });
+
   test('keeps council multi-seat dispatch compatible with enforcement', () => {
     const routed = hook();
     routed.after(
@@ -160,6 +180,23 @@ describe('delegation enforcement', () => {
         { args: { subagent_type: 'council' } },
       ),
     ).not.toThrow();
+  });
+
+  test('does not let council mutate before dispatching a councillor', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'council',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
+    ).toThrow('dispatch that specialist');
   });
 
   test('requires dispatch before mutating marketplace tools', () => {
