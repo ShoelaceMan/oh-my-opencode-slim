@@ -28,13 +28,13 @@ describe('delegation enforcement', () => {
     ).not.toThrow();
   });
 
-  test('blocks unclassified tools while enforcement is enabled', () => {
+  test('requires a decision before unclassified tools while enforcement is enabled', () => {
     expect(() =>
       hook().before(
         { tool: 'mcp_mutating_tool', sessionID: 's1' },
         { args: {} },
       ),
-    ).toThrow('unknown tool is blocked');
+    ).toThrow('routing required');
   });
 
   test('requires the selected specialist for delegated work', () => {

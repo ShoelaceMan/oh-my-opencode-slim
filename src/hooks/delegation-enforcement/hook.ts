@@ -1,7 +1,7 @@
 import type { DelegationRouterConfig } from '../../config';
 
 const ROUTE_TOOL = 'route_agent';
-const TASK_TOOLS = new Set(['task', 'subagent']);
+const TASK_TOOLS = new Set(['task', 'subagent', 'task_revive']);
 const OPERATIONAL_TOOLS = new Set([
   'bash',
   'edit',
@@ -12,6 +12,7 @@ const OPERATIONAL_TOOLS = new Set([
   'webfetch',
   'task',
   'subagent',
+  'task_revive',
 ]);
 const SAFE_TOOLS = new Set([
   ROUTE_TOOL,
@@ -25,18 +26,10 @@ const SAFE_TOOLS = new Set([
   'task_result',
   'task_message',
   'task_cancel',
-  'task_revive',
   'wait_for_user',
+  'question',
+  'permission',
 ]);
-
-function isCouncilTarget(agent: string | undefined): boolean {
-  return Boolean(
-    agent &&
-      (agent === 'council' ||
-        agent === 'councillor' ||
-        agent.startsWith('councillor-')),
-  );
-}
 
 type Decision = {
   routeType: 'direct' | 'agent' | 'manual';
@@ -115,13 +108,19 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       if (!activeFor(input.sessionID)) return;
       const tool = input.tool.toLowerCase();
       if (SAFE_TOOLS.has(tool)) return;
+      const decision = decisions.get(input.sessionID as string);
       if (!OPERATIONAL_TOOLS.has(tool)) {
-        throw new Error(
-          '[delegation-router] routing required: unknown tool is blocked while enforcement is enabled',
-        );
+        if (!decision) {
+          throw new Error(
+            '[delegation-router] routing required before using an unclassified tool while enforcement is enabled',
+          );
+        }
+        // Host extensions and MCPs are not enumerable here. Once the
+        // orchestrator has made a route decision, allow them to proceed; the
+        // pre-decision path remains fail-closed for unknown tools.
+        return;
       }
 
-      const decision = decisions.get(input.sessionID as string);
       if (!decision) {
         throw new Error(
           '[delegation-router] routing required: call route_agent for this bounded task before using operational tools or dispatching a specialist',
@@ -144,6 +143,18 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         );
       }
 
+      // Reviving an existing child is a continuation of an already selected
+      // specialist route. It still requires a decision, but must remain
+      // usable after the initial dispatch has consumed that route.
+      if (tool === 'task_revive') {
+        if (decision.routeType === 'direct') {
+          throw new Error(
+            '[delegation-router] Jev selected direct; do not revive a specialist task',
+          );
+        }
+        return;
+      }
+
       if (decision.routeType === 'agent' && TASK_TOOLS.has(tool)) {
         if (decision.dispatchUsed) {
           throw new Error(
@@ -160,10 +171,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
             ? options.resolveAgentName(target)
             : undefined;
         const resolvedRoute = options.resolveAgentName(decision.route);
-        if (
-          resolvedTarget !== resolvedRoute &&
-          !isCouncilTarget(resolvedTarget)
-        ) {
+        if (resolvedTarget !== resolvedRoute) {
           throw new Error(
             `[delegation-router] Jev selected ${decision.route}; task target was ${typeof target === 'string' ? target : 'missing'}`,
           );
