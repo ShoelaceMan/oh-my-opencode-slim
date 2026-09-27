@@ -14,7 +14,7 @@ const OPERATIONAL_TOOLS = new Set([
   'subagent',
 ]);
 
-type Decision = { routeType: 'direct' | 'agent'; route: string };
+type Decision = { routeType: 'direct' | 'agent' | 'manual'; route: string };
 
 interface ToolBeforeInput {
   tool: string;
@@ -40,6 +40,11 @@ function parseDecision(output: unknown): Decision | undefined {
   if (typeof output !== 'string') return undefined;
   try {
     const value = JSON.parse(output) as Record<string, unknown>;
+    if (value.status === 'unavailable' || value.status === 'uncertain') {
+      return value.dispatch === 'manual'
+        ? { routeType: 'manual', route: 'manual' }
+        : undefined;
+    }
     if (value.status !== 'selected') return undefined;
     if (value.route_type !== 'direct' && value.route_type !== 'agent') {
       return undefined;
@@ -92,6 +97,12 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       if (decision.routeType === 'agent' && !TASK_TOOLS.has(tool)) {
         throw new Error(
           `[delegation-router] Jev selected ${decision.route}; dispatch that specialist with task before using operational tools directly`,
+        );
+      }
+
+      if (decision.routeType === 'direct' && TASK_TOOLS.has(tool)) {
+        throw new Error(
+          '[delegation-router] Jev selected direct; handle the task directly instead of dispatching a specialist',
         );
       }
 
