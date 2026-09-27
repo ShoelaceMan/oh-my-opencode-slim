@@ -13,6 +13,7 @@ const OPERATIONAL_TOOLS = new Set([
   'task',
   'subagent',
   'task_revive',
+  'marketplace_manage',
 ]);
 const SAFE_TOOLS = new Set([
   ROUTE_TOOL,
@@ -55,6 +56,7 @@ interface HookOptions {
   config: DelegationRouterConfig;
   getAgent: (sessionID: string) => string | undefined;
   resolveAgentName: (agent: string) => string;
+  getTaskAgent?: (sessionID: string, taskID: string) => string | undefined;
 }
 
 function parseDecision(output: unknown): Decision | undefined {
@@ -118,6 +120,11 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         // Host extensions and MCPs are not enumerable here. Once the
         // orchestrator has made a route decision, allow them to proceed; the
         // pre-decision path remains fail-closed for unknown tools.
+        if (decision.routeType === 'agent' && !decision.dispatchUsed) {
+          throw new Error(
+            `[delegation-router] Jev selected ${decision.route}; dispatch that specialist before using unclassified tools`,
+          );
+        }
         return;
       }
 
@@ -130,7 +137,8 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       if (
         decision.routeType === 'agent' &&
         !decision.dispatchUsed &&
-        !TASK_TOOLS.has(tool)
+        !TASK_TOOLS.has(tool) &&
+        decision.route !== 'council'
       ) {
         throw new Error(
           `[delegation-router] Jev selected ${decision.route}; dispatch that specialist with task before using operational tools directly`,
@@ -152,15 +160,29 @@ export function createDelegationEnforcementHook(options: HookOptions) {
             '[delegation-router] Jev selected direct; do not revive a specialist task',
           );
         }
+        const args =
+          output.args && typeof output.args === 'object'
+            ? (output.args as Record<string, unknown>)
+            : {};
+        const taskID = typeof args.task_id === 'string' ? args.task_id : '';
+        const taskAgent = options.getTaskAgent?.(
+          input.sessionID as string,
+          taskID,
+        );
+        if (
+          decision.routeType === 'agent' &&
+          taskAgent &&
+          options.resolveAgentName(taskAgent) !==
+            options.resolveAgentName(decision.route)
+        ) {
+          throw new Error(
+            `[delegation-router] Jev selected ${decision.route}; task_revive targets ${taskAgent}`,
+          );
+        }
         return;
       }
 
       if (decision.routeType === 'agent' && TASK_TOOLS.has(tool)) {
-        if (decision.dispatchUsed) {
-          throw new Error(
-            '[delegation-router] this route was already dispatched; call route_agent again for the next specialist task',
-          );
-        }
         const args =
           output.args && typeof output.args === 'object'
             ? (output.args as Record<string, unknown>)
@@ -170,6 +192,22 @@ export function createDelegationEnforcementHook(options: HookOptions) {
           typeof target === 'string'
             ? options.resolveAgentName(target)
             : undefined;
+        if (decision.route === 'council') {
+          if (
+            resolvedTarget !== 'council' &&
+            !resolvedTarget?.startsWith('councillor-')
+          ) {
+            throw new Error(
+              `[delegation-router] Jev selected council; task target was ${typeof target === 'string' ? target : 'missing'}`,
+            );
+          }
+          return;
+        }
+        if (decision.dispatchUsed) {
+          throw new Error(
+            '[delegation-router] this route was already dispatched; call route_agent again for the next specialist task',
+          );
+        }
         const resolvedRoute = options.resolveAgentName(decision.route);
         if (resolvedTarget !== resolvedRoute) {
           throw new Error(

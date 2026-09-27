@@ -7,11 +7,15 @@ const config = DelegationRouterConfigSchema.parse({
   enforce: true,
 });
 
-function hook(agent = 'orchestrator') {
+function hook(
+  agent = 'orchestrator',
+  getTaskAgent?: (sessionID: string, taskID: string) => string | undefined,
+) {
   return createDelegationEnforcementHook({
     config,
     getAgent: () => agent,
     resolveAgentName: (value) => value.toLowerCase(),
+    getTaskAgent,
   });
 }
 
@@ -110,6 +114,72 @@ describe('delegation enforcement', () => {
         { args: { task_id: 'child' } },
       ),
     ).not.toThrow();
+  });
+
+  test('rejects revival of a child owned by another specialist', () => {
+    const routed = hook('orchestrator', () => 'operator');
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'runner',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'task_revive', sessionID: 's1' },
+        { args: { task_id: 'operator-task' } },
+      ),
+    ).toThrow('targets operator');
+  });
+
+  test('keeps council multi-seat dispatch compatible with enforcement', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'council',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'task', sessionID: 's1' },
+        { args: { subagent_type: 'councillor-alpha' } },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      routed.before(
+        { tool: 'task', sessionID: 's1' },
+        { args: { subagent_type: 'council' } },
+      ),
+    ).not.toThrow();
+  });
+
+  test('requires dispatch before mutating marketplace tools', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'runner',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'marketplace_manage', sessionID: 's1' },
+        { args: {} },
+      ),
+    ).toThrow('dispatch that specialist');
   });
 
   test('allows an unclassified extension only after routing', () => {

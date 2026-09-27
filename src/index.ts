@@ -1150,6 +1150,8 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
       config: { ...runtime.delegationRouter, enabled: delegationRouterActive },
       getAgent: (sessionID) => sessionMetadata.getAgent(sessionID),
       resolveAgentName: (agent) => resolveRuntimeAgentName(runtime, agent),
+      getTaskAgent: (sessionID, taskID) =>
+        backgroundJobCoordinator.resolve(sessionID, taskID)?.agent,
     });
 
     const shouldRegisterWebfetch = runtime.webfetch.enabled !== false;
