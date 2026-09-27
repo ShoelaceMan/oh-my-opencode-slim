@@ -167,6 +167,7 @@ describe('RuntimeConfig', () => {
     expect(runtime.webfetch.enabled).toBe(true);
     expect(runtime.delegationRouter).toEqual({
       enabled: false,
+      enforce: false,
       model: 'typesafe/jev-1.13',
       apiKeyEnv: 'OPENROUTER_API_KEY',
       confidenceThreshold: 0.72,
