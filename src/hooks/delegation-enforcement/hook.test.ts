@@ -78,6 +78,58 @@ describe('delegation enforcement', () => {
     expect(() =>
       routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
     ).not.toThrow();
+    expect(() =>
+      routed.before(
+        { tool: 'task', sessionID: 's1' },
+        { args: { subagent_type: 'runner' } },
+      ),
+    ).toThrow('selected direct');
+  });
+
+  test('requires a route for revive and allows it after an agent route', () => {
+    const routed = hook();
+    expect(() =>
+      routed.before(
+        { tool: 'task_revive', sessionID: 's1' },
+        { args: { task_id: 'child' } },
+      ),
+    ).toThrow('routing required');
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'runner',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'task_revive', sessionID: 's1' },
+        { args: { task_id: 'child' } },
+      ),
+    ).not.toThrow();
+  });
+
+  test('allows an unclassified extension only after routing', () => {
+    const routed = hook();
+    expect(() =>
+      routed.before({ tool: 'mcp_readonly', sessionID: 's1' }, { args: {} }),
+    ).toThrow('routing required');
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'direct',
+          route: 'direct',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before({ tool: 'mcp_readonly', sessionID: 's1' }, { args: {} }),
+    ).not.toThrow();
   });
 
   test('accepts a display-name route when the task uses the canonical name', () => {
