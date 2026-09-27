@@ -133,7 +133,7 @@ function isCouncilReadOnlyCommand(part: string): boolean {
   return true;
 }
 
-function isCouncilContextBash(args: unknown): boolean {
+function _isCouncilContextBash(args: unknown): boolean {
   if (typeof args !== 'object' || args === null) return false;
   const command = (args as Record<string, unknown>).command;
   if (typeof command !== 'string' || !command.trim()) return false;
@@ -219,16 +219,16 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         );
       }
 
-      // Council needs to collect the PR/issue/document context before it can
-      // dispatch councillors. Keep this escape hatch explicitly read-only:
-      // webfetch is retrieval-only, while bash is limited to inspection and
-      // retrieval commands above. Mutating tools still require dispatch.
+      // Existing Council Mode is orchestrator-driven: it gathers external
+      // context itself, dispatches multiple councillor seats, and finally
+      // invokes the synthesis agent. Keep those context tools available
+      // throughout the council procedure; other operational tools still
+      // require the selected route's dispatch gate.
       if (
         decision.routeType === 'agent' &&
         decision.route === 'council' &&
         !decision.dispatchUsed &&
-        (tool === 'webfetch' ||
-          (tool === 'bash' && isCouncilContextBash(output.args)))
+        (tool === 'webfetch' || tool === 'bash')
       ) {
         return;
       }

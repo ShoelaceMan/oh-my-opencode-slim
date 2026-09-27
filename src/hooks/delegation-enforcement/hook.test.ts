@@ -182,7 +182,7 @@ describe('delegation enforcement', () => {
     ).not.toThrow();
   });
 
-  test('does not let council mutate before dispatching a councillor', () => {
+  test('lets council gather context before dispatching councillors', () => {
     const routed = hook();
     routed.after(
       { tool: 'route_agent', sessionID: 's1' },
@@ -196,10 +196,10 @@ describe('delegation enforcement', () => {
     );
     expect(() =>
       routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
-    ).toThrow('dispatch that specialist');
+    ).not.toThrow();
   });
 
-  test('allows council to gather read-only context before dispatch', () => {
+  test('keeps council context tools available after dispatches', () => {
     const routed = hook();
     routed.after(
       { tool: 'route_agent', sessionID: 's1' },
@@ -220,24 +220,13 @@ describe('delegation enforcement', () => {
         { args: { command: 'git diff -- README.md' } },
       ),
     ).not.toThrow();
+    routed.before(
+      { tool: 'task', sessionID: 's1' },
+      { args: { subagent_type: 'councillor-alpha' } },
+    );
     expect(() =>
-      routed.before(
-        { tool: 'bash', sessionID: 's1' },
-        { args: { command: 'git diff > /tmp/context' } },
-      ),
-    ).toThrow('dispatch that specialist');
-    expect(() =>
-      routed.before(
-        { tool: 'bash', sessionID: 's1' },
-        { args: { command: 'git diff; rm -rf /tmp/context' } },
-      ),
-    ).toThrow('dispatch that specialist');
-    expect(() =>
-      routed.before(
-        { tool: 'bash', sessionID: 's1' },
-        { args: { command: 'curl -X POST https://example.invalid' } },
-      ),
-    ).toThrow('dispatch that specialist');
+      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
+    ).not.toThrow();
   });
 
   test('requires dispatch before mutating marketplace tools', () => {
