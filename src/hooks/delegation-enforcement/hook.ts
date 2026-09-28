@@ -39,6 +39,8 @@ type Decision = {
   routeType: 'direct' | 'agent' | 'manual';
   route: string;
   dispatchUsed: boolean;
+  dispatchedTarget?: string;
+  dispatchedTaskID?: string;
 };
 
 interface ToolBeforeInput {
@@ -332,15 +334,18 @@ export function createDelegationEnforcementHook(options: HookOptions) {
           }
           if (decision.dispatchUsed) {
             throw new Error(
-              '[delegation-router] manual fallback already dispatched one specialist; route again for another task',
+              `[delegation-router] manual fallback already dispatched ${decision.dispatchedTarget ?? 'a specialist'}${decision.dispatchedTaskID ? ` (${decision.dispatchedTaskID})` : ''}; do not retry it. Use task_status/task_result or task_message for the existing task, then route again only for a new task`,
             );
           }
           decision.dispatchUsed = true;
+          decision.dispatchedTarget = resolvedTarget;
+          decision.dispatchedTaskID =
+            typeof args.task_id === 'string' ? args.task_id : undefined;
           return;
         }
         if (decision.dispatchUsed) {
           throw new Error(
-            '[delegation-router] this route was already dispatched; call route_agent again for the next specialist task',
+            `[delegation-router] ${decision.route} was already dispatched${decision.dispatchedTaskID ? ` as ${decision.dispatchedTaskID}` : ''}; do not retry or resume it in this turn. Use task_status/task_result or task_message for the existing task, then call route_agent again only for a new task`,
           );
         }
         const resolvedRoute = options.resolveAgentName(decision.route);
@@ -350,6 +355,9 @@ export function createDelegationEnforcementHook(options: HookOptions) {
           );
         }
         decision.dispatchUsed = true;
+        decision.dispatchedTarget = resolvedTarget;
+        decision.dispatchedTaskID =
+          typeof args.task_id === 'string' ? args.task_id : undefined;
       }
     },
 
