@@ -2015,7 +2015,16 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
       // v2 admission tracker — agent-discovery forwards agent/model
       // without parts.
       const messageID = input.messageID ?? output?.message?.id;
-      if (agent === 'orchestrator' && messageID) {
+      // Keep a route decision alive across the assistant's tool-call loop.
+      // OpenCode can emit chat.message for intermediate assistant messages;
+      // clearing here made route_agent succeed and the immediately following
+      // task() fail with "no route exists". A new user message still resets
+      // the decision for the next bounded turn.
+      if (
+        agent === 'orchestrator' &&
+        messageID &&
+        output?.message?.role !== 'assistant'
+      ) {
         delegationEnforcement.reset(input.sessionID);
       }
       const inputParts = Array.isArray(input.parts) ? input.parts : [];
