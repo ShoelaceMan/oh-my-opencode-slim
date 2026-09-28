@@ -149,9 +149,10 @@ function parseDecision(output: unknown): Decision | undefined {
   try {
     const value = JSON.parse(output) as Record<string, unknown>;
     if (value.status === 'unavailable' || value.status === 'uncertain') {
-      return value.dispatch === 'manual'
-        ? { routeType: 'manual', route: 'manual', dispatchUsed: false }
-        : undefined;
+      // An uncertain/unavailable answer is itself a routing outcome. Treat it
+      // as explicit manual mode so enforcement does not turn a failed Jev
+      // request into an infinite route/dispatch retry loop.
+      return { routeType: 'manual', route: 'manual', dispatchUsed: false };
     }
     if (value.status !== 'selected') return undefined;
     if (value.route_type !== 'direct' && value.route_type !== 'agent') {
@@ -246,6 +247,12 @@ export function createDelegationEnforcementHook(options: HookOptions) {
       if (decision.routeType === 'direct' && TASK_TOOLS.has(tool)) {
         throw new Error(
           '[delegation-router] Jev selected direct; handle the task directly instead of dispatching a specialist',
+        );
+      }
+
+      if (decision.routeType === 'manual' && TASK_TOOLS.has(tool)) {
+        throw new Error(
+          '[delegation-router] Jev could not select a route; continue directly or obtain a fresh selected route before dispatching',
         );
       }
 

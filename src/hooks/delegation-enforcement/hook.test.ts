@@ -332,6 +332,25 @@ describe('delegation enforcement', () => {
         { tool: 'task', sessionID: 's1' },
         { args: { subagent_type: 'runner' } },
       ),
+    ).toThrow('could not select a route');
+  });
+
+  test('treats uncertain routing as manual mode', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({ status: 'uncertain', confidence: 0.56 }),
+      },
+    );
+    expect(() =>
+      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
     ).not.toThrow();
+    expect(() =>
+      routed.before(
+        { tool: 'task', sessionID: 's1' },
+        { args: { subagent_type: 'runner' } },
+      ),
+    ).toThrow('could not select a route');
   });
 });
