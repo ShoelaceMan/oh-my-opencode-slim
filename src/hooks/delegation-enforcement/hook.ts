@@ -30,6 +30,9 @@ const SAFE_TOOLS = new Set([
   'wait_for_user',
   'question',
   'permission',
+  'plan_enter',
+  'plan_exit',
+  'todowrite',
 ]);
 
 type Decision = {

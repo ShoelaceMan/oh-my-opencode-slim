@@ -32,6 +32,20 @@ describe('delegation enforcement', () => {
     ).not.toThrow();
   });
 
+  test('allows orchestration control tools before routing', () => {
+    for (const tool of [
+      'question',
+      'permission',
+      'plan_enter',
+      'plan_exit',
+      'todowrite',
+    ]) {
+      expect(() =>
+        hook().before({ tool, sessionID: 's1' }, { args: {} }),
+      ).not.toThrow();
+    }
+  });
+
   test('requires a decision before unclassified tools while enforcement is enabled', () => {
     expect(() =>
       hook().before(
