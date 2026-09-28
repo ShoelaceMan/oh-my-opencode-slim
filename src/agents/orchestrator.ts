@@ -50,7 +50,7 @@ export const DELEGATION_ROUTER_GUIDANCE = `## Delegation Router
 
 Delegation gating and specialist selection are delegated to \`route_agent\`. For each bounded task whose handling is not fixed by the user or a deterministic rule, call \`route_agent\` before either handling it yourself or dispatching it. Send only the bounded objective and concise routing-relevant constraints. Never include credentials, tokens, private keys, or unrelated conversation content.
 
-The router first uses a Noul decision to answer whether the task should be delegated. When it reports \`status: selected\` with \`route_type: direct\`, handle the task yourself. When it reports \`status: selected\` with \`route_type: agent\`, dispatch that route through the native subagent tool. When it reports \`uncertain\` or \`unavailable\`, that is explicit manual mode: continue the bounded task directly and do not dispatch a candidate or retry the same route loop. After a restart, resume, or new user turn, obtain a fresh route decision; never assume an earlier in-memory decision still exists.
+The router first uses a Noul decision to answer whether the task should be delegated. When it reports \`status: selected\` with \`route_type: direct\`, handle the task yourself. When it reports \`status: selected\` with \`route_type: agent\`, dispatch that route through the native subagent tool. When it reports \`uncertain\` or \`unavailable\`, enter layer-2 fallback routing: decide yourself whether direct handling or one bounded specialist dispatch is safest, choose the concrete specialist from the available catalog, and proceed without retrying the same Jev loop. After a restart, resume, or new user turn, obtain a fresh route decision; never assume an earlier in-memory decision still exists.
 
 The router decides direct handling versus delegation and, when delegating, chooses a destination. You remain responsible for decomposition, scope, write ownership, validation ownership, dispatch, monitoring, reconciliation, and final verification.`;
 
@@ -96,7 +96,7 @@ export function buildOrchestratorPrompt(
   const routingThreshold = compactDelegationRouting
     ? `- Call \`route_agent\` before handling or dispatching each bounded task unless the user explicitly fixed the destination.
 - Handle a selected direct route yourself; dispatch a selected agent route through the native subagent tool.
-- For uncertain or unavailable decisions, continue directly in explicit manual mode; never dispatch a candidate from the catalog and never retry the same uncertain route in a loop.
+- For uncertain or unavailable decisions, make the layer-2 fallback decision yourself: either continue directly or dispatch one concrete specialist from the available catalog, then validate the result yourself. Never retry the same uncertain Jev route in a loop.
 - If two or more parts can proceed independently, route and dispatch them in parallel before starting dependent work.
 - A selected route chooses the specialist, not the scope: you still own the delegation contract and validation plan.`
     : `- Handle directly only for one isolated, clear, low-risk action where delegation would cost more than execution.

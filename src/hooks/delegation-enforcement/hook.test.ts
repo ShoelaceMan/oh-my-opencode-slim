@@ -346,7 +346,7 @@ describe('delegation enforcement', () => {
         { tool: 'task', sessionID: 's1' },
         { args: { subagent_type: 'runner' } },
       ),
-    ).toThrow('could not select a route');
+    ).not.toThrow();
   });
 
   test('treats uncertain routing as manual mode', () => {
@@ -365,6 +365,6 @@ describe('delegation enforcement', () => {
         { tool: 'task', sessionID: 's1' },
         { args: { subagent_type: 'runner' } },
       ),
-    ).toThrow('could not select a route');
+    ).not.toThrow();
   });
 });

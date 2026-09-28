@@ -253,12 +253,6 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         );
       }
 
-      if (decision.routeType === 'manual' && TASK_TOOLS.has(tool)) {
-        throw new Error(
-          '[delegation-router] Jev could not select a route; continue directly or obtain a fresh selected route before dispatching',
-        );
-      }
-
       // Reviving an existing child is a continuation of an already selected
       // specialist route. It still requires a decision, but must remain
       // usable after the initial dispatch has consumed that route.
@@ -288,6 +282,14 @@ export function createDelegationEnforcementHook(options: HookOptions) {
           );
         }
         const resolvedTaskAgent = options.resolveAgentName(taskAgent);
+        if (decision.routeType === 'manual') {
+          if (resolvedTaskAgent === 'orchestrator') {
+            throw new Error(
+              '[delegation-router] manual fallback cannot revive the orchestrator session',
+            );
+          }
+          return;
+        }
         const ownsRevivedTask =
           decision.route === 'council'
             ? resolvedTaskAgent === 'council' ||
@@ -301,7 +303,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         return;
       }
 
-      if (decision.routeType === 'agent' && TASK_TOOLS.has(tool)) {
+      if (TASK_TOOLS.has(tool)) {
         const args =
           output.args && typeof output.args === 'object'
             ? (output.args as Record<string, unknown>)
@@ -311,7 +313,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
           typeof target === 'string'
             ? options.resolveAgentName(target)
             : undefined;
-        if (decision.route === 'council') {
+        if (decision.routeType === 'agent' && decision.route === 'council') {
           if (
             resolvedTarget !== 'council' &&
             !resolvedTarget?.startsWith('councillor-')
@@ -320,6 +322,20 @@ export function createDelegationEnforcementHook(options: HookOptions) {
               `[delegation-router] Jev selected council; task target was ${typeof target === 'string' ? target : 'missing'}`,
             );
           }
+          return;
+        }
+        if (decision.routeType === 'manual') {
+          if (!resolvedTarget || resolvedTarget === 'orchestrator') {
+            throw new Error(
+              '[delegation-router] manual fallback requires the orchestrator to choose a concrete specialist target',
+            );
+          }
+          if (decision.dispatchUsed) {
+            throw new Error(
+              '[delegation-router] manual fallback already dispatched one specialist; route again for another task',
+            );
+          }
+          decision.dispatchUsed = true;
           return;
         }
         if (decision.dispatchUsed) {
