@@ -225,18 +225,30 @@ export function createDelegationEnforcementHook(options: HookOptions) {
         );
       }
 
-      // Existing Council Mode is orchestrator-driven: it gathers external
-      // context itself, dispatches multiple councillor seats, and finally
-      // invokes the synthesis agent. Keep those context tools available
-      // throughout the council procedure; other operational tools still
-      // require the selected route's dispatch gate.
+      // Council is a bounded read-only context phase followed by one or more
+      // councillor/synthesis dispatches. It must never become a back door for
+      // mutation, even after the first seat has been dispatched.
       if (
         decision.routeType === 'agent' &&
         decision.route === 'council' &&
-        !decision.dispatchUsed &&
         (tool === 'webfetch' || tool === 'bash')
       ) {
+        if (tool === 'bash' && !_isCouncilContextBash(output.args)) {
+          throw new Error(
+            '[delegation-router] Jev selected council; bash is limited to read-only context gathering before synthesis',
+          );
+        }
         return;
+      }
+
+      if (
+        decision.routeType === 'agent' &&
+        decision.route === 'council' &&
+        !TASK_TOOLS.has(tool)
+      ) {
+        throw new Error(
+          '[delegation-router] Jev selected council; only read-only context tools and council task dispatch are allowed',
+        );
       }
 
       if (

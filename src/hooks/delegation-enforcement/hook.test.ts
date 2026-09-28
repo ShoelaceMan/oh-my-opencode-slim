@@ -94,7 +94,10 @@ describe('delegation enforcement', () => {
       },
     );
     expect(() =>
-      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git status --short' } },
+      ),
     ).not.toThrow();
     expect(() =>
       routed.before(
@@ -209,7 +212,10 @@ describe('delegation enforcement', () => {
       },
     );
     expect(() =>
-      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git status --short' } },
+      ),
     ).not.toThrow();
   });
 
@@ -239,8 +245,34 @@ describe('delegation enforcement', () => {
       { args: { subagent_type: 'councillor-alpha' } },
     );
     expect(() =>
-      routed.before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git log -1 --oneline' } },
+      ),
     ).not.toThrow();
+  });
+
+  test('keeps council context read-only and blocks mutation', () => {
+    const routed = hook();
+    routed.after(
+      { tool: 'route_agent', sessionID: 's1' },
+      {
+        output: JSON.stringify({
+          status: 'selected',
+          route_type: 'agent',
+          route: 'council',
+        }),
+      },
+    );
+    expect(() =>
+      routed.before(
+        { tool: 'bash', sessionID: 's1' },
+        { args: { command: 'git status --short; touch /tmp/not-read-only' } },
+      ),
+    ).toThrow('read-only context');
+    expect(() =>
+      routed.before({ tool: 'edit', sessionID: 's1' }, { args: {} }),
+    ).toThrow('only read-only context tools');
   });
 
   test('requires dispatch before mutating marketplace tools', () => {
