@@ -1142,6 +1142,18 @@ export const OhMyOpenCodeLite: Plugin = async (ctx) => {
           candidates: buildDelegationRouteCandidates(runtime, agentDefs),
           resolveAgentName: (agent) => resolveRuntimeAgentName(runtime, agent),
           getOpenRouterCredential: openRouterCredentialBridge?.getCredential,
+          getActiveTasks: (parentSessionID) =>
+            backgroundJobCoordinator
+              .list(parentSessionID)
+              .filter((job) => ['running', 'busy', 'retry'].includes(job.state))
+              .map((job) => ({
+                taskID: job.taskID,
+                alias: job.alias,
+                agent: job.agent,
+                description: job.description,
+                objective: job.objective,
+                state: job.state,
+              })),
         })
       : {};
     delegationEnforcement = createDelegationEnforcementHook({

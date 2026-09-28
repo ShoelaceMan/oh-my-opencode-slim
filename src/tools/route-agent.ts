@@ -18,6 +18,15 @@ interface RouteAgentToolOptions {
   getOpenRouterCredential?: () => string | undefined;
   fetchImpl?: FetchLike;
   env?: Readonly<Record<string, string | undefined>>;
+  /** Return live child work so routing can avoid duplicate specialist dispatch. */
+  getActiveTasks?: (parentSessionID: string) => readonly {
+    taskID: string;
+    alias: string;
+    agent: string;
+    description: string;
+    objective?: string;
+    state: string;
+  }[];
 }
 
 interface DecisionAnswer {
@@ -225,6 +234,11 @@ export function createRouteAgentTool(
         args.context?.trim()
           ? `Routing-relevant constraints:\n${args.context.trim()}`
           : undefined,
+        typeof toolContext?.sessionID === 'string'
+          ? formatActiveTasks(
+              options.getActiveTasks?.(toolContext.sessionID) ?? [],
+            )
+          : undefined,
       ]
         .filter((part): part is string => Boolean(part))
         .join('\n\n');
@@ -386,4 +400,30 @@ export function createRouteAgentTool(
   });
 
   return { route_agent };
+}
+
+function formatActiveTasks(
+  tasks: readonly {
+    taskID: string;
+    alias: string;
+    agent: string;
+    description: string;
+    objective?: string;
+    state: string;
+  }[],
+): string | undefined {
+  const active = tasks.filter((task) =>
+    ['running', 'busy', 'retry'].includes(task.state),
+  );
+  if (active.length === 0) return 'Active specialist tasks: none.';
+  return [
+    'Active specialist tasks (do not duplicate these; reuse or choose another route):',
+    ...active
+      .slice(0, 12)
+      .map(
+        (task) =>
+          `- ${task.alias} (${task.taskID}), agent=${task.agent}, state=${task.state}, ` +
+          `description=${task.description}${task.objective ? `, objective=${task.objective}` : ''}`,
+      ),
+  ].join('\n');
 }

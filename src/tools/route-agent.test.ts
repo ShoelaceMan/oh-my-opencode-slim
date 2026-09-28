@@ -53,12 +53,21 @@ describe('route_agent tool', () => {
       fetchImpl,
       getOpenRouterCredential: () => 'stored-opencode-key',
       env: {},
+      getActiveTasks: () => [
+        {
+          taskID: 'ses_operator',
+          alias: 'ope-5',
+          agent: 'operator',
+          state: 'running',
+          description: 'Pin and prove the backend route',
+        },
+      ],
     }).route_agent;
 
     const result = parseResult(
       await routeAgent.execute(
         { objective: 'Implement the parsed configuration.' },
-        { agent: 'orchestrator' } as never,
+        { agent: 'orchestrator', sessionID: 'ses_parent' } as never,
       ),
     );
 
@@ -74,6 +83,9 @@ describe('route_agent tool', () => {
     expect(requestBodies[0]?.model).toBe('typesafe/jev-1.13');
     expect(requestBodies[0]?.state).toContain(
       'Implement the parsed configuration.',
+    );
+    expect(requestBodies[0]?.state).toContain(
+      'ope-5 (ses_operator), agent=operator, state=running',
     );
     expect(requestBodies[0]?.questions).toMatchObject({
       should_delegate: { type: 'noul' },

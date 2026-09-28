@@ -52,7 +52,7 @@ Delegation gating and specialist selection are delegated to \`route_agent\`. For
 
 The router first uses a Noul decision to answer whether the task should be delegated. When it reports \`status: selected\` with \`route_type: direct\`, handle the task yourself. When it reports \`status: selected\` with \`route_type: agent\`, dispatch that route through the native subagent tool. When it reports \`uncertain\` or \`unavailable\`, enter layer-2 fallback routing: decide yourself whether direct handling or one bounded specialist dispatch is safest, choose the concrete specialist from the available catalog, and proceed without retrying the same Jev loop. After a restart, resume, or new user turn, obtain a fresh route decision; never assume an earlier in-memory decision still exists.
 
-The router decides direct handling versus delegation and, when delegating, chooses a destination. You remain responsible for decomposition, scope, write ownership, validation ownership, dispatch, monitoring, reconciliation, and final verification.`;
+The router decides direct handling versus delegation and, when delegating, chooses a destination. Its input includes live active-task state. Never dispatch a new task to an agent that already owns a matching active task: use the existing task's status/result tools, queue a concise message when appropriate, or choose another route. If a dispatch is rejected because the selected agent is busy, treat that as a recoverable duplicate-dispatch error—do not retry the same task call. You remain responsible for decomposition, scope, write ownership, validation ownership, dispatch, monitoring, reconciliation, and final verification.`;
 
 /**
  * Build the orchestrator prompt with dynamic agent filtering.
@@ -96,6 +96,7 @@ export function buildOrchestratorPrompt(
   const routingThreshold = compactDelegationRouting
     ? `- Call \`route_agent\` before handling or dispatching each bounded task unless the user explicitly fixed the destination.
 - Handle a selected direct route yourself; dispatch a selected agent route through the native subagent tool.
+- Before dispatching, inspect the active-task information supplied to the route decision. Reuse or monitor a matching active task instead of spawning or resuming a duplicate.
 - For uncertain or unavailable decisions, make the layer-2 fallback decision yourself: either continue directly or dispatch one concrete specialist from the available catalog, then validate the result yourself. Never retry the same uncertain Jev route in a loop.
 - If two or more parts can proceed independently, route and dispatch them in parallel before starting dependent work.
 - A selected route chooses the specialist, not the scope: you still own the delegation contract and validation plan.`
