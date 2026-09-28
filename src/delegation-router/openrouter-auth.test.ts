@@ -46,4 +46,16 @@ describe('OpenRouter credential bridge', () => {
 
     expect(bridge.getCredential()).toBeUndefined();
   });
+
+  test('does not share credentials between setup bridges', async () => {
+    const first = createOpenRouterCredentialBridge();
+    const second = createOpenRouterCredentialBridge();
+
+    await first.auth.loader?.(
+      async () => ({ type: 'api', key: 'first-key' }),
+      {} as never,
+    );
+    expect(first.getCredential()).toBe('first-key');
+    expect(second.getCredential()).toBeUndefined();
+  });
 });

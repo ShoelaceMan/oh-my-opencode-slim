@@ -41,16 +41,20 @@ function readBearerCredential(auth: unknown): string | undefined {
  * login so enabling the bridge does not break `/connect openrouter`.
  */
 export function createOpenRouterCredentialBridge(): CredentialBridge {
+  // Keep v1 setup credentials scoped to this bridge. The module-level value is
+  // retained only for the v2 header bridge, where setup generation cleanup
+  // explicitly fences it; v1 instances must not inherit another setup's key.
+  let credential: string | undefined;
   return {
-    getCredential: () => sharedCredential,
+    getCredential: () => credential,
     auth: {
       provider: 'openrouter',
       methods: [{ type: 'api', label: 'API key' }],
       loader: async (getAuth) => {
         try {
-          setOpenRouterCredential(readBearerCredential(await getAuth()));
+          credential = readBearerCredential(await getAuth());
         } catch {
-          setOpenRouterCredential(undefined);
+          credential = undefined;
         }
         return {};
       },
