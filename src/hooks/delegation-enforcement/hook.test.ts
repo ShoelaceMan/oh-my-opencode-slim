@@ -23,7 +23,7 @@ describe('delegation enforcement', () => {
   test('rejects operational tools before a Jev decision', () => {
     expect(() =>
       hook().before({ tool: 'bash', sessionID: 's1' }, { args: {} }),
-    ).toThrow('routing required');
+    ).toThrow('no route exists');
   });
 
   test('allows passive inspection before routing', () => {
@@ -97,7 +97,7 @@ describe('delegation enforcement', () => {
         { tool: 'task_revive', sessionID: 's1' },
         { args: { task_id: 'child' } },
       ),
-    ).toThrow('routing required');
+    ).toThrow('no route exists');
     routed.after(
       { tool: 'route_agent', sessionID: 's1' },
       {

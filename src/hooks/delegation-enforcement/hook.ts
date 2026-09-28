@@ -216,7 +216,7 @@ export function createDelegationEnforcementHook(options: HookOptions) {
 
       if (!decision) {
         throw new Error(
-          '[delegation-router] routing required: call route_agent for this bounded task before using operational tools or dispatching a specialist',
+          '[delegation-router] no route exists for this turn: call route_agent now; if it is uncertain or unavailable, continue directly in manual mode and do not dispatch a specialist',
         );
       }
 
